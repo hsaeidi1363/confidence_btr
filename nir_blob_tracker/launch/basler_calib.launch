@@ -1,0 +1,5 @@
+<launch>
+	<include file ="$(find pylon_camera)/launch/pylon_camera_node.launch">
+		<arg name ="config_file" value = "$(find nir_blob_tracker)/config/calib.yaml"/>
+	</include> 
+</launch>

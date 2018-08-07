@@ -1,0 +1,10 @@
+<launch>
+	<include file = "$(find realsense2_camera)/launch/rs_rgbd.launch"/>
+	<node pkg="nir_blob_tracker" type="dyn_laser.py" name="laser_toggle"/>
+    <node pkg="nir_blob_tracker" type="intel_pcl_filter" name="pcl_filter"/>
+# it reads from the raw image not the calibrated one
+	<include file ="$(find pylon_camera)/launch/pylon_camera_node.launch">
+		<arg name ="config_file" value = "$(find nir_blob_tracker)/config/calibrated.yaml"/>
+	</include>
+	<node pkg = "nir_blob_tracker" type ="nirblobtracker" name ="mynirblobs"/>
+</launch>
