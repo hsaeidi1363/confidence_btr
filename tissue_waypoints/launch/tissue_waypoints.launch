@@ -1,9 +1,9 @@
 <launch>
 	<node pkg="tissue_waypoints" type ="tissue_waypoints" name="tissue_waypoints">
-		<param name ="x_min" value ="0.02"/>
-		<param name ="x_max" value ="0.048"/>
-		<param name ="y_min" value ="-0.003"/>
-		<param name ="y_max" value ="0.0068"/>
+		<param name ="x_min" value ="-0.011"/>
+		<param name ="x_max" value ="0.024"/>
+		<param name ="y_min" value ="0.017"/>
+		<param name ="y_max" value ="0.027"/>
 		<param name ="z_min" value ="0.44"/>
 		<param name ="z_max" value ="0.54"/>
 	</node>

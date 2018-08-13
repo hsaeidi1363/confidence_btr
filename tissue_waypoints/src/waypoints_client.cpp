@@ -5,6 +5,7 @@
 #include<pcl_ros/point_cloud.h>
 #include<pcl_conversions/pcl_conversions.h>
 
+void detect_key_points(pcl::PointCloud<pcl::PointXYZI> &in_list, pcl::PointCloud<pcl::PointXYZI> & out_traj);
 
 pcl::PointCloud<pcl::PointXYZI> marker_cog_pcl;
 
@@ -19,6 +20,7 @@ int main(int argc, char **argv){
 	ros::Rate loop_rate(0.25);
 	ros::Subscriber pcl_sub = n.subscribe("/nir_overlay_intel/cog",1,get_pcl);
 	ros::Publisher traj_pub = n.advertise<pcl::PointCloud<pcl::PointXYZI> > ("tissue_traj",1);
+	ros::Publisher short_traj_pub = n.advertise<pcl::PointCloud<pcl::PointXYZI> > ("short_tissue_traj",1);
 	ros::ServiceClient wp_client = n.serviceClient<tissue_waypoints::Trajectory>("FindTrajectory");
 	
 	ROS_INFO("service available");
@@ -26,6 +28,9 @@ int main(int argc, char **argv){
  	while(ros::ok()){
 
 		pcl::PointCloud<pcl::PointXYZI> output_traj;			
+		pcl::PointCloud<pcl::PointXYZI> short_output_traj;		
+		pcl::PointCloud<pcl::PointXYZI> short_output_traj;			
+
 		if(marker_cog_pcl.points.size() == 0){
 			ROS_INFO("waiting for the pcl to be received");
 		}else{
@@ -44,6 +49,7 @@ int main(int argc, char **argv){
 					ROS_INFO("got the points back:");
 
 					std::cout << srv.response.path_x.size()<<std::endl;
+					pcl::PointCloud<pcl::PointXYZI> pt_list;
 					for(int i = 0 ; i< srv.response.path_x.size(); i++){
 						pcl::PointXYZI xyzi;
 						xyzi.x = srv.response.path_x[i];	
@@ -51,13 +57,17 @@ int main(int argc, char **argv){
 						xyzi.z = srv.response.path_z[i];
 						xyzi.intensity = 20;	
 						output_traj.points.push_back(xyzi);
+						pt_list.points.push_back(xyzi);
 					}
+					detect_key_points(pt_list,short_output_traj);
 					std_msgs::Header header;
 					header.stamp = ros::Time::now();
-					header.seq = seq++;
+					header.seq = seq++; // is this correct?
 					header.frame_id = std::string("camera_color_optical_frame");
 					output_traj.header = pcl_conversions::toPCL(header);
+					short_output_traj.header = pcl_conversions::toPCL(header);
 					traj_pub.publish(output_traj);
+					short_traj_pub.publish(short_output_traj);
 				}
 				else
 				{
@@ -70,4 +80,34 @@ int main(int argc, char **argv){
 		ros::spinOnce();
 	}
 	return 0;
+}
+
+float dist_3d(pcl::PointXYZI & pt1, pcl::PointXYZI & pt2){
+	float dx = pt1.x - pt2.x;
+	float dy = pt1.y - pt2.y;
+	float dz = pt1.z - pt2.z;
+	return std::sqrt( dx*dx +dy*dy + dz*dz);
+}
+void detect_key_points(pcl::PointCloud<pcl::PointXYZI> &in_list, pcl::PointCloud<pcl::PointXYZI> & out_traj){
+	float traj_length = 0.0;
+	int mid_points = 2;
+	std::vector<float> points_loc;// the location of point on the path based on the traveled distance between the start and end point
+	points_loc.push_back(0.0); //distance of the start point on the path is zero
+	for (int i = 1; i < in_list.points.size(); i++){
+		traj_length += dist_3d(in_list.points[i], in_list.points[i-1]);
+		points_loc.push_back(traj_length);
+	} 
+	float traj_seg_len = (float)traj_length/ (mid_points+1);
+	for (int j = 1; j<= mid_points; j++){
+		float min_dist = 1000.0;
+		int min_ind = 0;
+		float mid_point_loc = traj_seg_len*j; // e.g. for mid_points = 4 (4 waypoints between the start and end) we will have 5 path segments and mid_point_loc = 20%, 40%, 60%, and 80% of the path
+		for (int i = 0; i < in_list.points.size(); i++){
+			if (fabs(mid_point_loc - points_loc[i]) < min_dist){
+				min_dist = fabs(mid_point_loc - points_loc[i]);
+				min_ind = i;
+			}
+		}
+		out_traj.points.push_back(in_list.points[min_ind]);
+	}
 }

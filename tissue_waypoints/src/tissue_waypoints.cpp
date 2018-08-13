@@ -213,7 +213,7 @@ bool find(tissue_waypoints::Trajectory::Request &req,
   // write_Triads(triads, "triangles.txt");
   // write_Shx(ptsOut, "pts.txt");
   std::cout<<selectedPoint[0]<<"  "<< selectedPoint[1]<<std::endl;
- std::cout<<triads.size()<<std::endl;
+  std::cout<<triads.size()<<std::endl;
   int start = selectedPoint[0];
   int end = selectedPoint[1];
   std::vector<int> path;
