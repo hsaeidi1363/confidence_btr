@@ -89,6 +89,15 @@ void callback(const sensor_msgs::PointCloud2Ptr& cloud) {
  *  @param[in] res is a response that contains trajectory information
  *  @return none
  */
+
+float x_min =0.0;
+float x_max =0.0;
+float y_min =0.0;
+float y_max =0.0;
+float z_min =0.0;
+float z_max =0.0;
+
+
 bool find(tissue_waypoints::Trajectory::Request &req,
           tissue_waypoints::Trajectory::Response &res) {
 
@@ -107,14 +116,14 @@ bool find(tissue_waypoints::Trajectory::Request &req,
   cloud_out = pointcloud_in.makeShared();
   pt.setInputCloud(*cloud_out);
 
-  pt.setFilterXlimit(-0.011, 0.0019);
+  pt.setFilterXlimit(x_min, x_max);
 
   pt.filterProcess(*cloud_out);
   pt.setInputCloud(*cloud_out);
-  pt.setFilterZlimit(0.44, 0.51);
+  pt.setFilterZlimit(z_min, z_max);
   pt.filterProcess(*cloud_out);
   pt.setInputCloud(*cloud_out);
-  pt.setFilterYlimit(0.005, 0.0088);
+  pt.setFilterYlimit(y_min, y_max);
   pt.filterProcess(*cloud_out);
   //  4. Down sample the point cloud
   //ROS_INFO(" 4. Down sampling the point cloud, please wait...");
@@ -265,6 +274,14 @@ int main(int argc, char **argv) {
 
   ros::init(argc, argv, "tissue_waypoints");
   ros::NodeHandle n;
+  ros::NodeHandle home("~");
+  home.getParam("x_min", x_min);
+  home.getParam("x_max", x_max);
+  home.getParam("y_min", y_min);
+  home.getParam("y_max", y_max);
+  home.getParam("z_min", z_min);
+  home.getParam("z_max", z_max);
+
 
   // ros::Publisher pub_pcl = nh.advertise<PointCloud>("test", 10);
   ros::Subscriber sub_pcl = n.subscribe("/d415/filtered_points", 1, &callback);
