@@ -14,6 +14,31 @@ void get_pcl(const sensor_msgs::PointCloud2Ptr& cloud){
 	ROS_INFO("got the point cloud data eventually");
 
 }
+//some variables related to the filter using RLS method for fixed positions of the markers
+bool filter_initialized = false;
+float P = 10.0;
+float H = 1.0;
+float R = 2.0; //how to set this?
+float K = 0.0;
+pcl::PointCloud<pcl::PointXYZI> filtered_output_traj;
+
+void filter_waypoints(pcl::PointCloud<pcl::PointXYZI> & _raw, pcl::PointCloud<pcl::PointXYZI> & _filtered){
+  if(!filter_initialized){
+    for (int i = 0; i < _raw.points.size(); i++){
+      _filtered.points.push_back(_raw.points[i]);      
+    }
+    filter_initialized = true;
+  }else{
+    K = P*H/(H*P*H + R);
+    P *= (1 - K*H);
+    for (int i = 0; i < _raw.points.size();i++){
+      _filtered.points[i].x += K*(_raw.points[i].x-H*_filtered.points[i].x);    
+      _filtered.points[i].y += K*(_raw.points[i].y-H*_filtered.points[i].y);    
+      _filtered.points[i].z += K*(_raw.points[i].z-H*_filtered.points[i].z);    
+    }
+  }  
+}
+
 int main(int argc, char **argv){
 	ros::init(argc, argv, "waypoints_client");
 	ros::NodeHandle n;
@@ -21,6 +46,7 @@ int main(int argc, char **argv){
 	ros::Subscriber pcl_sub = n.subscribe("/nir_overlay_intel/cog",1,get_pcl);
 	ros::Publisher traj_pub = n.advertise<pcl::PointCloud<pcl::PointXYZI> > ("tissue_traj",1);
 	ros::Publisher short_traj_pub = n.advertise<pcl::PointCloud<pcl::PointXYZI> > ("short_tissue_traj",1);
+	ros::Publisher filtered_traj_pub = n.advertise<pcl::PointCloud<pcl::PointXYZI> > ("filtered_tissue_traj",1);
 	ros::ServiceClient wp_client = n.serviceClient<tissue_waypoints::Trajectory>("FindTrajectory");
 	
 	ROS_INFO("service available");
@@ -29,7 +55,6 @@ int main(int argc, char **argv){
 
 		pcl::PointCloud<pcl::PointXYZI> output_traj;			
 		pcl::PointCloud<pcl::PointXYZI> short_output_traj;		
-		pcl::PointCloud<pcl::PointXYZI> short_output_traj;			
 
 		if(marker_cog_pcl.points.size() == 0){
 			ROS_INFO("waiting for the pcl to be received");
@@ -75,6 +100,12 @@ int main(int argc, char **argv){
 					return 1;
 				}
 			}
+      filter_waypoints(short_output_traj,filtered_output_traj);
+			std_msgs::Header header;
+			header.stamp = ros::Time::now();
+			header.frame_id = std::string("camera_color_optical_frame");
+			filtered_output_traj.header = pcl_conversions::toPCL(header);
+      filtered_traj_pub.publish(filtered_output_traj);
 		}
 		loop_rate.sleep();
 		ros::spinOnce();
@@ -90,7 +121,7 @@ float dist_3d(pcl::PointXYZI & pt1, pcl::PointXYZI & pt2){
 }
 void detect_key_points(pcl::PointCloud<pcl::PointXYZI> &in_list, pcl::PointCloud<pcl::PointXYZI> & out_traj){
 	float traj_length = 0.0;
-	int mid_points = 2;
+	int mid_points = 3;
 	std::vector<float> points_loc;// the location of point on the path based on the traveled distance between the start and end point
 	points_loc.push_back(0.0); //distance of the start point on the path is zero
 	for (int i = 1; i < in_list.points.size(); i++){
