@@ -11,12 +11,12 @@ pcl::PointCloud<pcl::PointXYZI> marker_cog_pcl;
 
 void get_pcl(const sensor_msgs::PointCloud2Ptr& cloud){
 	pcl::fromROSMsg(*cloud, marker_cog_pcl);
-	ROS_INFO("got the point cloud data eventually");
+	ROS_INFO("got a new reading from marker COG point cloud");
 
 }
 //some variables related to the filter using RLS method for fixed positions of the markers
 bool filter_initialized = false;
-float P = 10.0;
+float P = 100.0;
 float H = 1.0;
 float R = 2.0; //how to set this?
 float K = 0.0;
@@ -31,10 +31,12 @@ void filter_waypoints(pcl::PointCloud<pcl::PointXYZI> & _raw, pcl::PointCloud<pc
   }else{
     K = P*H/(H*P*H + R);
     P *= (1 - K*H);
+	ROS_INFO("P is: %f and K is: %f", P,K);
     for (int i = 0; i < _raw.points.size();i++){
       _filtered.points[i].x += K*(_raw.points[i].x-H*_filtered.points[i].x);    
       _filtered.points[i].y += K*(_raw.points[i].y-H*_filtered.points[i].y);    
       _filtered.points[i].z += K*(_raw.points[i].z-H*_filtered.points[i].z);    
+	  _filtered.points[i].intensity = 50;
     }
   }  
 }
@@ -42,7 +44,7 @@ void filter_waypoints(pcl::PointCloud<pcl::PointXYZI> & _raw, pcl::PointCloud<pc
 int main(int argc, char **argv){
 	ros::init(argc, argv, "waypoints_client");
 	ros::NodeHandle n;
-	ros::Rate loop_rate(0.25);
+	ros::Rate loop_rate(2);
 	ros::Subscriber pcl_sub = n.subscribe("/nir_overlay_intel/cog",1,get_pcl);
 	ros::Publisher traj_pub = n.advertise<pcl::PointCloud<pcl::PointXYZI> > ("tissue_traj",1);
 	ros::Publisher short_traj_pub = n.advertise<pcl::PointCloud<pcl::PointXYZI> > ("short_tissue_traj",1);
@@ -80,7 +82,7 @@ int main(int argc, char **argv){
 						xyzi.x = srv.response.path_x[i];	
 						xyzi.y = srv.response.path_y[i];	
 						xyzi.z = srv.response.path_z[i];
-						xyzi.intensity = 20;	
+						xyzi.intensity = 100;	
 						output_traj.points.push_back(xyzi);
 						pt_list.points.push_back(xyzi);
 					}
@@ -100,12 +102,13 @@ int main(int argc, char **argv){
 					return 1;
 				}
 			}
-      filter_waypoints(short_output_traj,filtered_output_traj);
+      		filter_waypoints(short_output_traj,filtered_output_traj);
+			ROS_INFO("Filtered one loop of traj");
 			std_msgs::Header header;
 			header.stamp = ros::Time::now();
 			header.frame_id = std::string("camera_color_optical_frame");
 			filtered_output_traj.header = pcl_conversions::toPCL(header);
-      filtered_traj_pub.publish(filtered_output_traj);
+     		filtered_traj_pub.publish(filtered_output_traj);
 		}
 		loop_rate.sleep();
 		ros::spinOnce();

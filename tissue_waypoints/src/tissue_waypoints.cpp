@@ -90,6 +90,7 @@ void callback(const sensor_msgs::PointCloud2Ptr& cloud) {
  *  @return none
  */
 
+ros::Publisher dbg_pub;
 float x_min =0.0;
 float x_max =0.0;
 float y_min =0.0;
@@ -131,7 +132,7 @@ bool find(tissue_waypoints::Trajectory::Request &req,
   //vx.setLeafSize(0.0015, 0.0015, 0.0015);
   //vx.filterProcess(*cloud_out);
   
-  ROS_INFO(" Down sampling completed");
+  //ROS_INFO(" Down sampling completed");
   /****************************************************************************
    pcl::visualization::CloudViewer viewer("Cloud of Raw data");
    viewer.showCloud(cloud_out);
@@ -142,13 +143,14 @@ bool find(tissue_waypoints::Trajectory::Request &req,
    // ****************************************************************************/
   // pub_pcl.publish(cloud_out);
   //  2. Remove the noise of point cloud
-  ROS_INFO("2. Removing the noise of point cloud, please wait...");
+//	TODO: do we need noise reduction?!
+ /* ROS_INFO("2. Removing the noise of point cloud, please wait...");
   sor.setInputCloud(*cloud_out);
   sor.setMeanK(10);
   sor.setStddevMulThresh(1);
   sor.filterProcess(*cloud_out);
+*/
 
-  ROS_INFO("bib bib..");
   //*******************************************************************
   // 2017.11.9 Added Michael
   /*pcl::RadiusOutlierRemoval<pcl::PointXYZ> outrem;
@@ -165,7 +167,7 @@ bool find(tissue_waypoints::Trajectory::Request &req,
 
   //  3. Extract certain region of point cloud
   //  5. Smooth the point cloud
-   pcl::io::savePCDFile("resultsstep5.pcd",*cloud_out, true);
+  // pcl::io::savePCDFile("resultsstep5.pcd",*cloud_out, true);
 
   ROS_INFO(" 5. Smoothing the point cloud, please wait...");
 
@@ -206,13 +208,24 @@ bool find(tissue_waypoints::Trajectory::Request &req,
   // std::vector<Shx> ptsOut;
   delaunay3 dy3;
   dy3.setInputCloud(*cloud_out);
+  pcl::PointCloud<pcl::PointXYZ> dbg_pcd;
+  dbg_pcd = *cloud_out;
+  pcl::io::savePCDFile("beforefreez.pcd",*cloud_out, true);
+  std_msgs::Header header;
+  header.stamp = ros::Time::now();
+  header.frame_id = std::string("camera_color_optical_frame");
+  dbg_pcd.header = pcl_conversions::toPCL(header);
+  dbg_pub.publish(dbg_pcd);
+  ROS_INFO(" 10.b.1");
   dy3.putPointCloudIntoShx();
+  ROS_INFO(" 10.b.2");
   dy3.processDelaunay(triads);
-  ROS_INFO(" 10.b");
+  ROS_INFO(" 10.b.3");
+ 
   // dy3.getShx(ptsOut);
   // write_Triads(triads, "triangles.txt");
   // write_Shx(ptsOut, "pts.txt");
-  std::cout<<selectedPoint[0]<<"  "<< selectedPoint[1]<<std::endl;
+  //std::cout<<selectedPoint[0]<<"  "<< selectedPoint[1]<<std::endl;
   std::cout<<triads.size()<<std::endl;
   int start = selectedPoint[0];
   int end = selectedPoint[1];
@@ -220,46 +233,26 @@ bool find(tissue_waypoints::Trajectory::Request &req,
   dijkstraPQ dPQ(triads.size());
   dPQ.setInputCloud(*cloud_out);
   dPQ.setTri(triads);
-  ROS_INFO(" 10.c");
   dPQ.computeWeight();
   dPQ.shortestPath(start, end);
   dPQ.returnDijkstraPath(start, end, path);
 
-  std::vector<int>::iterator route = path.begin();
-  while (route != path.end()) {
-    ROS_INFO("%d ", *route);
-    //   std::cout << *route << " ";
-    ++route;
-  }
+ 
   //  std::cout << std::endl;
   std::vector<position> POS;
   dPQ.returnDijkstraPathPosition(start, end, POS);
   std::vector<position>::iterator routePos = POS.begin();
 
   float px, py, pz;
+  routePos = POS.begin();
   while (routePos != POS.end()) {
-    ROS_INFO("%f ", (*routePos).x);
-    // std::cout << (*routePos).x << " ";  // p.80
     px = (*routePos).x;
     res.path_x.push_back(px);
-    ++routePos;
-  }
-  // std::cout << std::endl;
-  routePos = POS.begin();
-  while (routePos != POS.end()) {
-    ROS_INFO("%f ", (*routePos).y);
-    //  std::cout << (*routePos).y << " ";
     py = (*routePos).y;
     res.path_y.push_back(py);
-    ++routePos;
-  }
-  // std::cout << std::endl;
-  routePos = POS.begin();
-  while (routePos != POS.end()) {
-    ROS_INFO("%f ", (*routePos).z);
-    // std::cout << (*routePos).z << " ";
     pz = (*routePos).z;
     res.path_z.push_back(pz);
+
     ++routePos;
   }
 
@@ -285,9 +278,10 @@ int main(int argc, char **argv) {
 
   // ros::Publisher pub_pcl = nh.advertise<PointCloud>("test", 10);
   ros::Subscriber sub_pcl = n.subscribe("/d415/filtered_points", 1, &callback);
+  dbg_pub = n.advertise<pcl::PointCloud<pcl::PointXYZ>>("dbg_tissue_plan",1);
   ros::ServiceServer service = n.advertiseService("FindTrajectory", &find);
 
-  ros::Rate loop_rate(1);
+  ros::Rate loop_rate(10);
 
 
   while (ros::ok()) {
