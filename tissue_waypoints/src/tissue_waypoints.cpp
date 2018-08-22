@@ -130,7 +130,7 @@ bool find(tissue_waypoints::Trajectory::Request &req,
   //vx.setInputCloud(*cloud_out);
   //vx.setLeafSize(0.0015, 0.0015, 0.0015);
   //vx.filterProcess(*cloud_out);
-  
+
   ROS_INFO(" Down sampling completed");
   /****************************************************************************
    pcl::visualization::CloudViewer viewer("Cloud of Raw data");
@@ -167,7 +167,7 @@ bool find(tissue_waypoints::Trajectory::Request &req,
   //  5. Smooth the point cloud
    pcl::io::savePCDFile("resultsstep5.pcd",*cloud_out, true);
 
-  ROS_INFO(" 5. Smoothing the point cloud, please wait...");
+  //ROS_INFO(" 5. Smoothing the point cloud, please wait...");
 
   //mls.setInputCloud(*cloud_out);
   //ROS_INFO(" 5a. Smoothing the point cloud, please wait...");
@@ -192,13 +192,39 @@ bool find(tissue_waypoints::Trajectory::Request &req,
   ROS_INFO(" 9. Merging point of selected point, please wait...");
   findNearestPoint mg;
   std::vector<int> selectedPoint;
-
   // mg.readtext("./src/Robotic-polishing/kidney3dots3_pointCluster.txt");
   mg.setPosition(req.start);
   mg.setPosition(req.end);
-
   mg.setInputCloud(*cloud_out);
   mg.findNearestProcess(selectedPoint);
+
+  // 2018 08 22 Michael
+    ROS_INFO(" 5. Smoothing the point cloud, please wait...");
+    mls.setInputCloud(*cloud_out);
+    mls.setSearchRadius(0.05);
+    mls.mlsProcess(*cloud_with_normal);
+    //  7. Mesh the obstacle
+    ROS_INFO(" 7. Meshing the obstacle, please wait...");
+    ft.setInputCloud(*cloud_with_normal);
+    ft.setSearchRadius(0.05);
+    ft.reconctruct(triangles);
+
+    pcl::PointCloud<pcl::PointXYZ> cloud_in_TrianglulationMesh;
+    pcl::fromPCLPointCloud2(triangles.cloud, cloud_in_TrianglulationMesh);
+
+    std::vector<Triad> triads;
+    Triad triad;
+    for(int i=0;i< triangles.polygons.size();i++)
+    {
+     triad.a = triangles.polygons[i].vertices[0];
+     triad.b = triangles.polygons[i].vertices[1];
+     triad.c = triangles.polygons[i].vertices[2];
+     triads.push_back(triad);
+     //positions_file << i <<" "<< triangles.polygons[i].vertices.size() << std::endl;
+     //positions_file << i <<" "<< triangles.polygons[i].vertices[0] << " " << triangles.polygons[i].vertices[1] << " " << triangles.polygons[i].vertices[2] << std::endl;
+    }
+
+/*
   std::vector<int> size3;
  // size3 = ft.getSegID();
   ROS_INFO(" 10. Delaunay3 function...");
@@ -208,7 +234,7 @@ bool find(tissue_waypoints::Trajectory::Request &req,
   dy3.setInputCloud(*cloud_out);
   dy3.putPointCloudIntoShx();
   dy3.processDelaunay(triads);
-  ROS_INFO(" 10.b");
+  ROS_INFO(" 10.b");*/
   // dy3.getShx(ptsOut);
   // write_Triads(triads, "triangles.txt");
   // write_Shx(ptsOut, "pts.txt");
@@ -218,7 +244,7 @@ bool find(tissue_waypoints::Trajectory::Request &req,
   int end = selectedPoint[1];
   std::vector<int> path;
   dijkstraPQ dPQ(triads.size());
-  dPQ.setInputCloud(*cloud_out);
+  dPQ.setInputCloud(cloud_in_TrianglulationMesh);
   dPQ.setTri(triads);
   ROS_INFO(" 10.c");
   dPQ.computeWeight();
@@ -291,7 +317,7 @@ int main(int argc, char **argv) {
 
 
   while (ros::ok()) {
-    
+
     ros::spinOnce();
     loop_rate.sleep();
 
