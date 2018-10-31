@@ -1,3 +1,4 @@
 #!/bin/bash 
-rosrun tf static_transform_publisher 0.346, 0.047, 0.242 0.610, 0.635, -0.303, -0.363 "world" "basler" 10
+rosrun tf static_transform_publisher -0.03934, -0.00567, 0.40936 0.63605, 0.65343, -0.2615, 0.31634 "basler" "checkerboard" 10
+
 

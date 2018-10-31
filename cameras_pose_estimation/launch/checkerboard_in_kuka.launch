@@ -1,0 +1,5 @@
+<launch>
+	<node name="checkerboard_in_kuka" pkg="cameras_pose_estimation" type="checkerboard_in_kuka">
+		<param name="needle_length" value="0.00"/>		
+	</node>
+</launch>

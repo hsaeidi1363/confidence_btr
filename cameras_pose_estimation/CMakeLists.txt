@@ -15,9 +15,11 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   std_msgs
   visp_bridge
+  iiwa_msgs
   tf
 )
 find_package(OpenCV REQUIRED)
+find_package( orocos_kdl REQUIRED )
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -205,4 +207,7 @@ include_directories(
 # catkin_add_nosetests(test)
 #add_executable(hand_eye_calib src/hand_eye_calib.cpp)
 #target_link_LIBRARIES(hand_eye_calib ${catkin_LIBRARIES} ${OpenCV_LIBS})
+
+add_executable(checkerboard_in_kuka src/checkerboard_in_kuka.cpp)
+target_link_libraries(checkerboard_in_kuka ${catkin_LIBRARIES} orocos-kdl)
 
