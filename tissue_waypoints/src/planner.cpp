@@ -20,6 +20,7 @@ class Planner{
         waypoint_sub = nh_.subscribe("filtered_tissue_traj",1,&Planner::get_traj, this);
         robot_pos_sub = nh_.subscribe("robot/worldpos", 1, &Planner::get_rob_pos, this);
         plan_pub =  nh_.advertise<trajectory_msgs::JointTrajectory>("/plan",1);
+	dbg_traj_pub = nh.advertise<pcl::PointCloud<pcl::PointXYZI> > ("plancloud",1);
       }
     void get_traj(const sensor_msgs::PointCloud2Ptr & _cloud){   
         pcl::fromROSMsg(*_cloud,traj_cloud);
@@ -39,6 +40,8 @@ class Planner{
         // get the transformation
 //        listener.lookupTransform("world", "intel", ros::Time(0), cam_in_rob);
         listener.lookupTransform("kuka", "intel", ros::Time(0), cam_in_rob);
+        tf::Transform inv_transform;
+        inv_transform = cam_in_rob.inverse();
 
         // this is just for tranforming the waypoints to robot frame but later we need to find out which one is the closest and sort the points sequentially for the controller
         trajectory_msgs::JointTrajectory unsorted_plan;
@@ -78,11 +81,26 @@ class Planner{
           }
         }
         plan.points.clear();
+	dbg_cloud.points.clear();
         ROS_INFO("cleared the old sorted plan and the length is now %d",(int) plan.points.size());
-        for (int i = 0; i < waypoints_len; i++){
+        for (int i = 0; i < 3; i++){
           int ind = (i + min_ind) % waypoints_len;
           plan.points.push_back(unsorted_plan.points[ind]);
+	  tf::Vector3 pose_in_cam;
+          // convert to robot frame
+          pose_in_cam = inv_transform(tf::Vector3(unsorted_plan.points[ind].positions[0], unsorted_plan.points[ind].positions[1], unsorted_plan.points[ind].positions[2])); 
+	  pcl::PointXYZI tmp;
+	  tmp.x = pose_in_cam.x();
+	  tmp.y = pose_in_cam.y();
+  	  tmp.z = pose_in_cam.z();
+	  tmp.intensity = 1;
+	  dbg_cloud.points.push_back(tmp);
         }
+	std_msgs::Header header;
+	header.stamp = ros::Time::now();
+	header.frame_id = std::string("camera_color_optical_frame");
+	dbg_cloud.header = pcl_conversions::toPCL(header);
+	dbg_traj_pub.publish(dbg_cloud);
         plan_pub.publish(plan);
       }     
       catch(...){
@@ -99,9 +117,11 @@ class Planner{
     ros::Subscriber waypoint_sub;
     ros::Subscriber robot_pos_sub;
     ros::Publisher plan_pub;
+    ros::Publisher dbg_traj_pub;
     tf::TransformListener listener;
     trajectory_msgs::JointTrajectory plan;
     pcl::PointCloud<pcl::PointXYZ> traj_cloud;
+    pcl::PointCloud<pcl::PointXYZI> dbg_cloud;
     geometry_msgs::Twist rob_pos;
     bool rob_pos_available;
 };
