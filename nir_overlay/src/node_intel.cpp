@@ -14,6 +14,8 @@
 #include <tf_conversions/tf_eigen.h>
 
 #include <geometry_msgs/PolygonStamped.h> // look it up
+#include <geometry_msgs/Polygon.h> // look it up
+#include <geometry_msgs/Point32.h>
 
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/CameraInfo.h>
@@ -60,10 +62,12 @@ class NIROverlay {
     NIROverlay::Sync sync;           // synchronize all the above
 
     ros::Publisher pub_cog;          // publish the resulting camera
-	ros::Publisher pub_dbg;    
-	size_t seq;
+    ros::Publisher pub_dbg;   
+    ros::Publisher pub_kuka_dbg;
+    size_t seq;
 
     tf::TransformListener listener;
+    tf::TransformListener listener_dbg; // for checking the transformation in kuka frame
 
     ros::Subscriber sub_pause_tracker; //AS
     std_msgs::UInt8 pause_tracker; //AS
@@ -103,6 +107,7 @@ NIROverlay::NIROverlay( ros::NodeHandle nh, ros::NodeHandle nhp ) :
 
     pub_cog=nhp.advertise< pcl::PointCloud<pcl::PointXYZI> >("cog", 1);
     pub_dbg=nhp.advertise< pcl::PointCloud<pcl::PointXYZI> >("overlayDBG", 1);
+    pub_kuka_dbg=nhp.advertise< geometry_msgs::Polygon>("kuka_polygon", 1);
     std::cout << sub_cinfo.getTopic() << " " 
       << sub_cog.getTopic() << " " 
       << sub_pcl.getTopic() << std::endl;
@@ -124,6 +129,10 @@ void NIROverlay::Callback( const sensor_msgs::CameraInfo& msginfo,
     try {  // get the pos/ori of raytrix wrt basler
       tf::StampedTransform tfRt;
       listener.lookupTransform( "basler", "intel", ros::Time(0), tfRt );
+
+      tf::StampedTransform tfRt_dbg; // for checking the transformations in robot frame
+      listener_dbg.lookupTransform( "kuka", "intel", ros::Time(0), tfRt_dbg );
+      geometry_msgs::Polygon kuka_polygon;
 
       Eigen::Affine3d eigRt;
       tf::transformTFToEigen( tfRt, eigRt );
@@ -212,6 +221,13 @@ void NIROverlay::Callback( const sensor_msgs::CameraInfo& msginfo,
             xyzi.z = stdxyz[i].z;
             xyzi.intensity = j;
             pclcog.push_back( xyzi );
+	    tf::Vector3 pos_in_kuka;
+            pos_in_kuka = tfRt_dbg(tf::Vector3(xyzi.x,xyzi.y,xyzi.z));
+	    geometry_msgs::Point32 kuka_pt;
+	    kuka_pt.x = pos_in_kuka.x();
+	    kuka_pt.y = pos_in_kuka.y();
+	    kuka_pt.z = pos_in_kuka.z();
+	    kuka_polygon.points.push_back(kuka_pt);
 	    found = true;
           }
         }
@@ -225,7 +241,8 @@ void NIROverlay::Callback( const sensor_msgs::CameraInfo& msginfo,
       pclcog.header = pcl_conversions::toPCL( header );
       pcldbg.header = pcl_conversions::toPCL( header );
       pub_cog.publish( pclcog );
-	  pub_dbg.publish(pcldbg);
+      pub_dbg.publish(pcldbg);
+      pub_kuka_dbg.publish(kuka_polygon);
 
     }
     catch(...) { 

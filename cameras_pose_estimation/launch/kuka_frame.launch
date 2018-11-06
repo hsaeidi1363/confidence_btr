@@ -1,0 +1,3 @@
+<launch>
+	<node pkg = "cameras_pose_estimation" type ="frame_kuka.sh" name ="kuka_frame"/>
+</launch>

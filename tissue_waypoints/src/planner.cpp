@@ -37,7 +37,9 @@ class Planner{
         // TODO: make sure when using the actual robot the frames match 
         tf::StampedTransform cam_in_rob;//transformation of intel camera in the world frame
         // get the transformation
-        listener.lookupTransform("world", "intel", ros::Time(0), cam_in_rob);
+//        listener.lookupTransform("world", "intel", ros::Time(0), cam_in_rob);
+        listener.lookupTransform("kuka", "intel", ros::Time(0), cam_in_rob);
+
         // this is just for tranforming the waypoints to robot frame but later we need to find out which one is the closest and sort the points sequentially for the controller
         trajectory_msgs::JointTrajectory unsorted_plan;
         // loop through the waypoints and convert to the robot frame
@@ -47,9 +49,13 @@ class Planner{
           // convert to robot frame
           pose_in_world = cam_in_rob(tf::Vector3(ctr->x, ctr->y, ctr->z)); 
           trajectory_msgs::JointTrajectoryPoint plan_pt; 
+//          plan_pt.positions.push_back(pose_in_world.x()); 
+//          plan_pt.positions.push_back(pose_in_world.y()-0.6); 
+//         plan_pt.positions.push_back(pose_in_world.z()+0.6); 
           plan_pt.positions.push_back(pose_in_world.x()); 
-          plan_pt.positions.push_back(pose_in_world.y()-0.6); 
-          plan_pt.positions.push_back(pose_in_world.z()+0.6); 
+          plan_pt.positions.push_back(pose_in_world.y()); 
+          plan_pt.positions.push_back(pose_in_world.z()+0.005); 
+
           plan_pt.positions.push_back(rob_pos.angular.x);
           plan_pt.positions.push_back(rob_pos.angular.y);
           plan_pt.positions.push_back(rob_pos.angular.z);

@@ -2,5 +2,6 @@
 	<node pkg="rviz" type="rviz" name="intel_rviz" args="-d $(find nir_overlay)/rviz/nir_overlay.rviz"/>
 	<include file = "$(find nir_blob_tracker)/launch/nirblobtracker.launch"/>
 	<include file = "$(find cameras_pose_estimation)/launch/camera_frames.launch"/>
+	<include file = "$(find cameras_pose_estimation)/launch/kuka_frame.launch"/>
 	<node pkg="nir_overlay" type="nir_overlay_intel" name="nir_overlay_intel"/>
 </launch>
