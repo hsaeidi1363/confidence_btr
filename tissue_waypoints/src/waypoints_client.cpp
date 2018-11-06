@@ -1,11 +1,18 @@
 #include<ros/ros.h>
 #include<tissue_waypoints/Trajectory.h>
 #include<sensor_msgs/PointCloud2.h>
+#include <geometry_msgs/Polygon.h>
 #include<pcl_ros/transforms.h>
 #include<pcl_ros/point_cloud.h>
 #include<pcl_conversions/pcl_conversions.h>
 
 void detect_key_points(pcl::PointCloud<pcl::PointXYZI> &in_list, pcl::PointCloud<pcl::PointXYZI> & out_traj);
+
+geometry_msgs::Polygon markers3D;
+void get_polygon(const geometry_msgs::Polygon & _data){
+	markers3D = _data;	
+	ROS_INFO("got a new reading from 3D polygons ");
+}
 
 pcl::PointCloud<pcl::PointXYZI> marker_cog_pcl;
 
@@ -46,6 +53,7 @@ int main(int argc, char **argv){
 	ros::NodeHandle n;
 	ros::Rate loop_rate(2);
 	ros::Subscriber pcl_sub = n.subscribe("/nir_overlay_intel/cog",1,get_pcl);
+	ros::Subscriber polygon_sub = n.subscribe("/nir_overlay_intel/polygon3D_cog",1, get_polygon);
 	ros::Publisher traj_pub = n.advertise<pcl::PointCloud<pcl::PointXYZI> > ("tissue_traj",1);
 	ros::Publisher short_traj_pub = n.advertise<pcl::PointCloud<pcl::PointXYZI> > ("short_tissue_traj",1);
 	ros::Publisher filtered_traj_pub = n.advertise<pcl::PointCloud<pcl::PointXYZI> > ("filtered_tissue_traj",1);
@@ -66,12 +74,19 @@ int main(int argc, char **argv){
 				tissue_waypoints::Trajectory srv;
 				int start_pt = pts_id % pts_len;
 				int end_pt = (pts_id +1 )% pts_len;
-				srv.request.start.push_back(marker_cog_pcl.points[start_pt].x); 
+				/*srv.request.start.push_back(marker_cog_pcl.points[start_pt].x); 
 				srv.request.start.push_back(marker_cog_pcl.points[start_pt].y); 
 				srv.request.start.push_back(marker_cog_pcl.points[start_pt].z); 
 				srv.request.end.push_back(marker_cog_pcl.points[end_pt].x); 
 				srv.request.end.push_back(marker_cog_pcl.points[end_pt].y); 
 				srv.request.end.push_back(marker_cog_pcl.points[end_pt].z); 
+				*/
+				srv.request.start.push_back(markers3D.points[start_pt].x); 
+				srv.request.start.push_back(markers3D.points[start_pt].y); 
+				srv.request.start.push_back(markers3D.points[start_pt].z); 
+				srv.request.end.push_back(markers3D.points[end_pt].x); 
+				srv.request.end.push_back(markers3D.points[end_pt].y); 
+				srv.request.end.push_back(markers3D.points[end_pt].z); 				
 				if(wp_client.call(srv)){
 					ROS_INFO("got the points back:");
 

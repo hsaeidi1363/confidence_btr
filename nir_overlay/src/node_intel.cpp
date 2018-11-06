@@ -62,6 +62,7 @@ class NIROverlay {
     NIROverlay::Sync sync;           // synchronize all the above
 
     ros::Publisher pub_cog;          // publish the resulting camera
+    ros::Publisher pub_3Dpolygon_cog;
     ros::Publisher pub_dbg;   
     ros::Publisher pub_kuka_dbg;
     size_t seq;
@@ -106,6 +107,7 @@ NIROverlay::NIROverlay( ros::NodeHandle nh, ros::NodeHandle nhp ) :
     sync.registerCallback( &NIROverlay::Callback, this );
 
     pub_cog=nhp.advertise< pcl::PointCloud<pcl::PointXYZI> >("cog", 1);
+    pub_3Dpolygon_cog= nhp.advertise<geometry_msgs::Polygon>( "polygon3D_cog", 100 );
     pub_dbg=nhp.advertise< pcl::PointCloud<pcl::PointXYZI> >("overlayDBG", 1);
     pub_kuka_dbg=nhp.advertise< geometry_msgs::Polygon>("kuka_polygon", 1);
     std::cout << sub_cinfo.getTopic() << " " 
@@ -133,6 +135,7 @@ void NIROverlay::Callback( const sensor_msgs::CameraInfo& msginfo,
       tf::StampedTransform tfRt_dbg; // for checking the transformations in robot frame
       listener_dbg.lookupTransform( "kuka", "intel", ros::Time(0), tfRt_dbg );
       geometry_msgs::Polygon kuka_polygon;
+      geometry_msgs::Polygon polygon3D;
 
       Eigen::Affine3d eigRt;
       tf::transformTFToEigen( tfRt, eigRt );
@@ -196,41 +199,50 @@ void NIROverlay::Callback( const sensor_msgs::CameraInfo& msginfo,
       }
 
       cv::projectPoints( stdxyz, cvR, cvt, K, D, stduv );
-
+      geometry_msgs::Point32 polygon3D_pt;
       std::vector< cv::Mat > cvcog( cog.polygon.points.size() );
       for( size_t j=0; j<cog.polygon.points.size(); j++ ){
         cv::Point2f cogj( cog.polygon.points[j].x, cog.polygon.points[j].y );
+	//polygon3D_pt.x =cog.polygon.points[j].x;
+	//polygon3D_pt.y =cog.polygon.points[j].y;
+	//polygon3D.points.push_back(polygon3D_pt);
         cvcog[j] = cv::Mat( cogj );
       }
 
-      for( size_t i=0; i<stduv.size(); i++ ){
+      for( size_t j=0; j<cog.polygon.points.size(); j++ ){
+	      bool found = false;
+	      for( size_t i=0; i<stduv.size(); i++ ){
 
-        // if the 3D point projection is within the NIR image, then overlay 
-        // the NIR intensity on the point cloud +30 on the red channel
-	bool found = false;
-        cv::Mat stduvi( stduv[i] );
-        for( size_t j=0; j<cog.polygon.points.size(); j++ ){
+		// if the 3D point projection is within the NIR image, then overlay 
+		// the NIR intensity on the point cloud +30 on the red channel
+		
+	    	  cv::Mat stduvi( stduv[i] );
+		  //rsd - is this value the radius of search in pixels??
+		  if( cv::norm( cvcog[j], stduvi ) < 3 && !found){
+		    cv::Point2f cj( 100000,100000 );
+		    cvcog[j] = cv::Mat(cj);
+		    pcl::PointXYZI xyzi;
+		    xyzi.x = stdxyz[i].x;
+		    xyzi.y = stdxyz[i].y;
+		    xyzi.z = stdxyz[i].z;
+		    xyzi.intensity = j;
+		    pclcog.push_back( xyzi );
+		    polygon3D_pt.x = xyzi.x;
+		    polygon3D_pt.y = xyzi.y;
+		    polygon3D_pt.z = xyzi.z;
+		    polygon3D.points.push_back(polygon3D_pt);
 
-          //rsd - is this value the radius of search in pixels??
-          if( cv::norm( cvcog[j], stduvi ) < 3 && !found){
-	    cv::Point2f cj( 100000,100000 );
-	    cvcog[j] = cv::Mat(cj);
-            pcl::PointXYZI xyzi;
-            xyzi.x = stdxyz[i].x;
-            xyzi.y = stdxyz[i].y;
-            xyzi.z = stdxyz[i].z;
-            xyzi.intensity = j;
-            pclcog.push_back( xyzi );
-	    tf::Vector3 pos_in_kuka;
-            pos_in_kuka = tfRt_dbg(tf::Vector3(xyzi.x,xyzi.y,xyzi.z));
-	    geometry_msgs::Point32 kuka_pt;
-	    kuka_pt.x = pos_in_kuka.x();
-	    kuka_pt.y = pos_in_kuka.y();
-	    kuka_pt.z = pos_in_kuka.z();
-	    kuka_polygon.points.push_back(kuka_pt);
-	    found = true;
-          }
-        }
+		    //some debugging for the kuka frame coordinates of the COG
+		    tf::Vector3 pos_in_kuka;
+		    pos_in_kuka = tfRt_dbg(tf::Vector3(xyzi.x,xyzi.y,xyzi.z));
+		    geometry_msgs::Point32 kuka_pt;
+		    kuka_pt.x = pos_in_kuka.x();
+		    kuka_pt.y = pos_in_kuka.y();
+		    kuka_pt.z = pos_in_kuka.z();
+		    kuka_polygon.points.push_back(kuka_pt);
+		    found = true;
+		  }
+	    }
       }
 
       std_msgs::Header header;
@@ -242,6 +254,7 @@ void NIROverlay::Callback( const sensor_msgs::CameraInfo& msginfo,
       pcldbg.header = pcl_conversions::toPCL( header );
       pub_cog.publish( pclcog );
       pub_dbg.publish(pcldbg);
+      pub_3Dpolygon_cog.publish(polygon3D);
       pub_kuka_dbg.publish(kuka_polygon);
 
     }
