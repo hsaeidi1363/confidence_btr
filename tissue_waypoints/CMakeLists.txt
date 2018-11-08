@@ -213,5 +213,8 @@ target_link_libraries(tissue_waypoints ${catkin_LIBRARIES} ${PCL_LIBRARIES} )
 add_executable(waypoints_client src/waypoints_client.cpp)
 target_link_libraries(waypoints_client ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
+add_executable(waypoints_linear src/waypoints_linear.cpp)
+target_link_libraries(waypoints_linear ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
 add_executable(tissue_planner src/planner.cpp)
 target_link_libraries(tissue_planner ${catkin_LIBRARIES} ${PCL_LIBRARIES})
