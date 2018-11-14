@@ -5,10 +5,19 @@
 #include<pcl_ros/transforms.h>
 #include<pcl_ros/point_cloud.h>
 #include<pcl_conversions/pcl_conversions.h>
+#include<std_msgs/Bool.h>
+
+bool freeze_path = false;
+
+void get_freeze(const std_msgs::Bool & _data){
+	freeze_path = _data.data;	
+}
+
 
 void detect_key_points(pcl::PointCloud<pcl::PointXYZI> &in_list, pcl::PointCloud<pcl::PointXYZI> & out_traj);
 
 geometry_msgs::Polygon markers3D;
+geometry_msgs::Polygon markers3D_old;
 void get_polygon(const geometry_msgs::Polygon & _data){
 	markers3D = _data;	
 	ROS_INFO("got a new reading from 3D polygons ");
@@ -52,6 +61,7 @@ int main(int argc, char **argv){
 	ros::init(argc, argv, "waypoints_linear");
 	ros::NodeHandle n;
 	ros::Rate loop_rate(2);
+	ros::Subscriber freeze_path_sub = n.subscribe("/freeze_path",1,get_freeze);	
 	ros::Subscriber pcl_sub = n.subscribe("/nir_overlay_intel/cog",1,get_pcl);
 	ros::Subscriber polygon_sub = n.subscribe("/nir_overlay_intel/polygon3D_cog",1, get_polygon);
 	ros::Publisher short_traj_pub = n.advertise<pcl::PointCloud<pcl::PointXYZI> > ("short_tissue_traj",1);
@@ -66,6 +76,9 @@ int main(int argc, char **argv){
 		if(marker_cog_pcl.points.size() == 0 || marker_cog_pcl.points.size() == 1){
 			ROS_INFO("waiting for the pcl points (min = 2) to be received");
 		}else{
+			if(freeze_path)
+				markers3D = markers3D_old; //use the last set of markers if we need to temporarily freeze the path otherwise use the most recent one
+
 			int pts_len = marker_cog_pcl.points.size();
 			for (int pts_id =0; pts_id < pts_len; pts_id++){
 				int start_pt = pts_id % pts_len;
@@ -104,6 +117,7 @@ int main(int argc, char **argv){
 			filtered_output_traj.header = pcl_conversions::toPCL(header);
 	 		filtered_traj_pub.publish(filtered_output_traj);
 		}
+		markers3D_old = markers3D;
 		loop_rate.sleep();
 		ros::spinOnce();
 	}
