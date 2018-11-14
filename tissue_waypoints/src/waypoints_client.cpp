@@ -37,6 +37,7 @@ float H = 1.0;
 float R = 2.0; //how to set this?
 float K = 0.0;
 pcl::PointCloud<pcl::PointXYZI> filtered_output_traj;
+pcl::PointCloud<pcl::PointXYZI> filtered_output_traj_old;
 
 void filter_waypoints(pcl::PointCloud<pcl::PointXYZI> & _raw, pcl::PointCloud<pcl::PointXYZI> & _filtered){
   if(!filter_initialized){
@@ -80,8 +81,8 @@ int main(int argc, char **argv){
 			ROS_INFO("waiting for the pcl points (min = 2) to be received");
 		}else{
 
-			if(freeze_path)
-				markers3D = markers3D_old; //use the last set of markers if we need to temporarily freeze the path otherwise use the most recent one
+			//if(freeze_path)
+			//	markers3D = markers3D_old; //use the last set of markers if we need to temporarily freeze the path otherwise use the most recent one
 			int pts_len = marker_cog_pcl.points.size();
 			for (int pts_id =0; pts_id < pts_len; pts_id++){
 				tissue_waypoints::Trajectory srv;
@@ -131,7 +132,12 @@ int main(int argc, char **argv){
 					return 1;
 				}
 			}
-	      		filter_waypoints(short_output_traj,filtered_output_traj);
+			if(freeze_path){
+				filtered_output_traj = filtered_output_traj_old;
+			}else{
+	      			filter_waypoints(short_output_traj,filtered_output_traj);
+			}
+			filtered_output_traj_old = filtered_output_traj;
 			ROS_INFO("Filtered one loop of traj");
 			std_msgs::Header header;
 			header.stamp = ros::Time::now();
