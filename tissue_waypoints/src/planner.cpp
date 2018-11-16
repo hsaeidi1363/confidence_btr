@@ -52,12 +52,10 @@ class Planner{
           // convert to robot frame
           pose_in_world = cam_in_rob(tf::Vector3(ctr->x, ctr->y, ctr->z)); 
           trajectory_msgs::JointTrajectoryPoint plan_pt; 
-//          plan_pt.positions.push_back(pose_in_world.x()); 
-//          plan_pt.positions.push_back(pose_in_world.y()-0.6); 
-//         plan_pt.positions.push_back(pose_in_world.z()+0.6); 
+ 
           plan_pt.positions.push_back(pose_in_world.x()); 
           plan_pt.positions.push_back(pose_in_world.y()); 
-          plan_pt.positions.push_back(pose_in_world.z()+0.005); 
+          plan_pt.positions.push_back(pose_in_world.z()+ 0.002); 
 
           plan_pt.positions.push_back(rob_pos.angular.x);
           plan_pt.positions.push_back(rob_pos.angular.y);
@@ -80,28 +78,31 @@ class Planner{
             dist = dist_tmp;
           }
         }
-        plan.points.clear();
-	dbg_cloud.points.clear();
-        ROS_INFO("cleared the old sorted plan and the length is now %d",(int) plan.points.size());
-        for (int i = 0; i < 3; i++){
-          int ind = (i + min_ind) % waypoints_len;
-          plan.points.push_back(unsorted_plan.points[ind]);
-	  tf::Vector3 pose_in_cam;
-          // convert to robot frame
-          pose_in_cam = inv_transform(tf::Vector3(unsorted_plan.points[ind].positions[0], unsorted_plan.points[ind].positions[1], unsorted_plan.points[ind].positions[2])); 
-	  pcl::PointXYZI tmp;
-	  tmp.x = pose_in_cam.x();
-	  tmp.y = pose_in_cam.y();
-  	  tmp.z = pose_in_cam.z();
-	  tmp.intensity = 1;
-	  dbg_cloud.points.push_back(tmp);
-        }
-	std_msgs::Header header;
-	header.stamp = ros::Time::now();
-	header.frame_id = std::string("camera_color_optical_frame");
-	dbg_cloud.header = pcl_conversions::toPCL(header);
-	dbg_traj_pub.publish(dbg_cloud);
-        plan_pub.publish(plan);
+	ROS_INFO("min dist is now %f",(float) dist);
+	if (dist > 0.015 || dist < 0.002){
+		plan.points.clear();
+		dbg_cloud.points.clear();
+		ROS_INFO("cleared the old sorted plan and the length is now %d",(int) plan.points.size());
+		for (int i = 0; i < 3; i++){
+		  int ind = (i + min_ind) % waypoints_len;
+		  plan.points.push_back(unsorted_plan.points[ind]);
+		  tf::Vector3 pose_in_cam;
+		  // convert to robot frame
+		  pose_in_cam = inv_transform(tf::Vector3(unsorted_plan.points[ind].positions[0], unsorted_plan.points[ind].positions[1], unsorted_plan.points[ind].positions[2])); 
+		  pcl::PointXYZI tmp;
+		  tmp.x = pose_in_cam.x();
+		  tmp.y = pose_in_cam.y();
+	  	  tmp.z = pose_in_cam.z();
+		  tmp.intensity = 1;
+		  dbg_cloud.points.push_back(tmp);
+		}
+		std_msgs::Header header;
+		header.stamp = ros::Time::now();
+		header.frame_id = std::string("camera_color_optical_frame");
+		dbg_cloud.header = pcl_conversions::toPCL(header);
+		dbg_traj_pub.publish(dbg_cloud);
+		plan_pub.publish(plan);
+	}
       }     
       catch(...){
         cout << "frames not read correctly"<< endl;
