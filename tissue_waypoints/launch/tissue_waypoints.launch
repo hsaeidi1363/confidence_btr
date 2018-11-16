@@ -1,9 +1,9 @@
 <launch>
 	<node pkg="tissue_waypoints" type ="tissue_waypoints" name="tissue_waypoints" output = "screen">
-		<param name ="x_min" value ="-0.023"/>
-		<param name ="x_max" value ="0.006"/>
-		<param name ="y_min" value ="-0.021"/>
-		<param name ="y_max" value ="-0.001"/>
+		<param name ="x_min" value ="-0.022"/>
+		<param name ="x_max" value ="0.000"/>
+		<param name ="y_min" value ="-0.003"/>
+		<param name ="y_max" value ="0.011"/>
 		<param name ="z_min" value ="0.35"/>
 		<param name ="z_max" value ="0.45"/>
 	</node>

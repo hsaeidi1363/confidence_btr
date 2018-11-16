@@ -1,4 +1,4 @@
 #!/bin/bash 
-rosrun tf static_transform_publisher 0.285, 0.007, 0.250 0.675, 0.649, -0.197, -0.291 "checkerboard" "basler" 10
+rosrun tf static_transform_publisher 0.289, 0.007, 0.248 0.674, 0.646, -0.203, -0.295 "checkerboard" "basler" 10
 
 
