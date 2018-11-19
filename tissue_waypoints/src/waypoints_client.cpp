@@ -160,7 +160,7 @@ float dist_3d(pcl::PointXYZI & pt1, pcl::PointXYZI & pt2){
 }
 void detect_key_points(pcl::PointCloud<pcl::PointXYZI> &in_list, pcl::PointCloud<pcl::PointXYZI> & out_traj){
 	float traj_length = 0.0;
-	int mid_points = 4;
+	int mid_points = 2;
 	std::vector<float> points_loc;// the location of point on the path based on the traveled distance between the start and end point
 	points_loc.push_back(0.0); //distance of the start point on the path is zero
 	for (int i = 1; i < in_list.points.size(); i++){

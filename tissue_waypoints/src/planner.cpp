@@ -83,9 +83,9 @@ int main(int argc, char **argv){
 			  pose_in_world = cam_in_rob(tf::Vector3(ctr->x, ctr->y, ctr->z)); 
 			  trajectory_msgs::JointTrajectoryPoint plan_pt; 
 		 
-			  plan_pt.positions.push_back(pose_in_world.x()); 
-			  plan_pt.positions.push_back(pose_in_world.y()); 
-			  plan_pt.positions.push_back(pose_in_world.z()+ 0.002); 
+			  plan_pt.positions.push_back(pose_in_world.x()+ 0.001); 
+			  plan_pt.positions.push_back(pose_in_world.y()+ 0.002); 
+			  plan_pt.positions.push_back(pose_in_world.z()- 0.007); 
 
 			  plan_pt.positions.push_back(rob_pos.angular.x);
 			  plan_pt.positions.push_back(rob_pos.angular.y);
