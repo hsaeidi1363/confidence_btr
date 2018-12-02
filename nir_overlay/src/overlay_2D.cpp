@@ -142,7 +142,7 @@ int main(int argc, char * argv[]){
 	    	  std::vector< cv::Point2f > stduv;
 		  if(freeze_path){
 			stduv = stduv_old;
-		  }else{
+		  }else if(stdxyz.size() != 0){
 			cv::projectPoints(stdxyz , cvR_intel, cvt_intel, K_intel, D_intel, stduv );
 			stduv_old.clear();
 			stduv_old = stduv;

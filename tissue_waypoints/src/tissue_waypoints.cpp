@@ -64,6 +64,8 @@
 #include <stack>
 #include <limits>
 #include <algorithm>
+#include <std_msgs::Float32.h>
+
 typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
 
 PointCloud pointcloud_in;
@@ -97,6 +99,14 @@ float y_min =0.0;
 float y_max =0.0;
 float z_min =0.0;
 float z_max =0.0;
+float offset_val = 0.0;
+
+void offset_callback(const std_msgs::Float & _data) {
+
+  offset_val = _data.data;  // get the value of offset
+
+}
+
 
 
 bool find(tissue_waypoints::Trajectory::Request &req,
@@ -117,14 +127,14 @@ bool find(tissue_waypoints::Trajectory::Request &req,
   cloud_out = pointcloud_in.makeShared();
   pt.setInputCloud(*cloud_out);
 
-  pt.setFilterXlimit(x_min, x_max);
+  pt.setFilterXlimit(x_min - offset_val, x_max + offset_val);
 
   pt.filterProcess(*cloud_out);
   pt.setInputCloud(*cloud_out);
   pt.setFilterZlimit(z_min, z_max);
   pt.filterProcess(*cloud_out);
   pt.setInputCloud(*cloud_out);
-  pt.setFilterYlimit(y_min, y_max);
+  pt.setFilterYlimit(y_min - offset_val, y_max + offset_val);
   pt.filterProcess(*cloud_out);
   //  4. Down sample the point cloud
   //ROS_INFO(" 4. Down sampling the point cloud, please wait...");
@@ -275,9 +285,11 @@ int main(int argc, char **argv) {
   home.getParam("z_min", z_min);
   home.getParam("z_max", z_max);
 
+ 
 
   // ros::Publisher pub_pcl = nh.advertise<PointCloud>("test", 10);
   ros::Subscriber sub_pcl = n.subscribe("/d415/filtered_points", 1, &callback);
+  ros::Subscriber sub_offset = n.subscribe("/traj_offset", 1, &offset_callback);
   dbg_pub = n.advertise<pcl::PointCloud<pcl::PointXYZ>>("dbg_tissue_plan",1);
   ros::ServiceServer service = n.advertiseService("FindTrajectory", &find);
 

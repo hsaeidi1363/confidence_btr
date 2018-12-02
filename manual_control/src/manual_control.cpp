@@ -42,8 +42,8 @@ double kp_x = 100.0;
 double kd_x = 300.0;
 double kp_y = 100.0;
 double kd_y = 300.0;
-double kp_z = 150.0;
-double kd_z = 600.0;
+double kp_z = 150.0/3;
+double kd_z = 600.0/3;
 
 double needle_length = 0.0;
 
@@ -156,8 +156,8 @@ void get_joints_phantom(const sensor_msgs::JointState & data){
 	for (int i = 0; i < 6;++i){
 		joints_phantom.position[i] = data.position[i];	
 	}
-	cam_pitch = (2*M_PI - joints_phantom.position[3])*0.2*0;
-        cam_roll = (joints_phantom.position[4] - 0.6)*(0.2)*0;
+	cam_pitch = (2*M_PI - joints_phantom.position[3])*0.2*0.0;
+        cam_roll = (joints_phantom.position[4] - 0.6)*(0.2)*0.0;
 	//joints_phantom.position[2] -= M_PI_2; // correct the offset in reading this joint positions based on the raw sensor data
 	//joints_phantom.position[3] -= 6.29; // correct the offset in reading this joint positions based on the raw sensor data
 	joints_phantom.position[4] += 0.785398; // correct the offset in reading this joint positions based on the raw sensor data
@@ -491,20 +491,20 @@ int main(int argc, char * argv[]){
                                 start_loc_available = true;
                                 
                             }else{
-                                double z_gain = 1.0;
+                                double c_gain = 0.50;
                                 // if the positions are read from the ROS driver directly
                                 if(!stylus_tip){
                                     xyz_command.linear.x = pos.pose.position.x;
                                     xyz_command.linear.y = -pos.pose.position.z;
-                                    xyz_command.linear.z = pos.pose.position.y*z_gain;
+                                    xyz_command.linear.z = pos.pose.position.y*c_gain;
 			//            xyz_command.linear.x = - pos.pose.position.y;
                         //            xyz_command.linear.y = pos.pose.position.x;
                         //            xyz_command.linear.z = pos.pose.position.z*z_gain;
                                     
                                 }else{
-                                    xyz_command.linear.x = xyz_phantom.linear.x-0.15;
-                                    xyz_command.linear.y = xyz_phantom.linear.y;
-                                    xyz_command.linear.z = xyz_phantom.linear.z*z_gain;                                    
+                                    xyz_command.linear.x = (xyz_phantom.linear.x-0.15)*c_gain;
+                                    xyz_command.linear.y = xyz_phantom.linear.y*c_gain;
+                                    xyz_command.linear.z = xyz_phantom.linear.z*c_gain;                                    
                                     
                                 }
                                
