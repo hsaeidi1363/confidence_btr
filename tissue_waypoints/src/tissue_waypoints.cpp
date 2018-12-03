@@ -64,7 +64,7 @@
 #include <stack>
 #include <limits>
 #include <algorithm>
-#include <std_msgs::Float32.h>
+#include <std_msgs/Float32.h>
 
 typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
 
@@ -99,9 +99,9 @@ float y_min =0.0;
 float y_max =0.0;
 float z_min =0.0;
 float z_max =0.0;
-float offset_val = 0.0;
+float offset_val = 0.005;
 
-void offset_callback(const std_msgs::Float & _data) {
+void offset_callback(const std_msgs::Float32 & _data) {
 
   offset_val = _data.data;  // get the value of offset
 

@@ -6,6 +6,8 @@
 #include<pcl_ros/point_cloud.h>
 #include<pcl_conversions/pcl_conversions.h>
 #include<std_msgs/Bool.h>
+#include<geometry_msgs/Vector3.h>
+#include<geometry_msgs/Point32.h>
 
 bool freeze_path = false;
 
@@ -15,8 +17,11 @@ void get_freeze(const std_msgs::Bool & _data){
 
 void detect_key_points(pcl::PointCloud<pcl::PointXYZI> &in_list, pcl::PointCloud<pcl::PointXYZI> & out_traj);
 
+geometry_msgs::Polygon add_offset(geometry_msgs::Polygon & polygon);
+
 geometry_msgs::Polygon markers3D;
 geometry_msgs::Polygon markers3D_old;
+geometry_msgs::Polygon markers3D_offset;
 
 void get_polygon(const geometry_msgs::Polygon & _data){
 	markers3D = _data;	
@@ -68,14 +73,17 @@ int main(int argc, char **argv){
 	ros::Publisher traj_pub = n.advertise<pcl::PointCloud<pcl::PointXYZI> > ("tissue_traj",1);
 	ros::Publisher short_traj_pub = n.advertise<pcl::PointCloud<pcl::PointXYZI> > ("short_tissue_traj",1);
 	ros::Publisher filtered_traj_pub = n.advertise<pcl::PointCloud<pcl::PointXYZI> > ("filtered_tissue_traj",1);
+	ros::Publisher offset_cog_pub = n.advertise<pcl::PointCloud<pcl::PointXYZI> > ("/nir_overlay_intel/cog_offset",1);
 	ros::ServiceClient wp_client = n.serviceClient<tissue_waypoints::Trajectory>("FindTrajectory");
 	
 	ROS_INFO("service available");
 	int seq = 0;
+	int seq2 = 0;
  	while(ros::ok()){
 
 		pcl::PointCloud<pcl::PointXYZI> output_traj;			
-		pcl::PointCloud<pcl::PointXYZI> short_output_traj;		
+		pcl::PointCloud<pcl::PointXYZI> short_output_traj;
+		pcl::PointCloud<pcl::PointXYZI> offset_cog;		
 
 		if(marker_cog_pcl.points.size() == 0 || marker_cog_pcl.points.size() == 1){
 			ROS_INFO("waiting for the pcl points (min = 2) to be received");
@@ -84,6 +92,28 @@ int main(int argc, char **argv){
 			//if(freeze_path)
 			//	markers3D = markers3D_old; //use the last set of markers if we need to temporarily freeze the path otherwise use the most recent one
 			int pts_len = marker_cog_pcl.points.size();
+			if (pts_len > 2){
+				markers3D_offset = add_offset(markers3D);
+				ROS_INFO("added offset to polygon");
+				offset_cog.points.clear();	
+				for(int off_ind = 0; off_ind < markers3D_offset.points.size(); off_ind ++){
+					pcl::PointXYZI xyzi;
+					xyzi.x = markers3D_offset.points[off_ind].x;	
+					xyzi.y = markers3D_offset.points[off_ind].y;
+					xyzi.z = markers3D_offset.points[off_ind].z;
+					xyzi.intensity = marker_cog_pcl.points[off_ind].intensity;//?	
+					offset_cog.points.push_back(xyzi);
+				}
+				std_msgs::Header header;
+				header.stamp = ros::Time::now();
+				header.seq = seq2++; 
+				header.frame_id = std::string("camera_color_optical_frame");
+				offset_cog.header = pcl_conversions::toPCL(header);
+				offset_cog_pub.publish(offset_cog);
+			}
+			else{
+				markers3D_offset = markers3D; // just use the same points without offset
+			}
 			for (int pts_id =0; pts_id < pts_len; pts_id++){
 				tissue_waypoints::Trajectory srv;
 				int start_pt = pts_id % pts_len;
@@ -95,12 +125,12 @@ int main(int argc, char **argv){
 				srv.request.end.push_back(marker_cog_pcl.points[end_pt].y); 
 				srv.request.end.push_back(marker_cog_pcl.points[end_pt].z); 
 				*/
-				srv.request.start.push_back(markers3D.points[start_pt].x); 
-				srv.request.start.push_back(markers3D.points[start_pt].y); 
-				srv.request.start.push_back(markers3D.points[start_pt].z); 
-				srv.request.end.push_back(markers3D.points[end_pt].x); 
-				srv.request.end.push_back(markers3D.points[end_pt].y); 
-				srv.request.end.push_back(markers3D.points[end_pt].z); 				
+				srv.request.start.push_back(markers3D_offset.points[start_pt].x); 
+				srv.request.start.push_back(markers3D_offset.points[start_pt].y); 
+				srv.request.start.push_back(markers3D_offset.points[start_pt].z); 
+				srv.request.end.push_back(markers3D_offset.points[end_pt].x); 
+				srv.request.end.push_back(markers3D_offset.points[end_pt].y); 
+				srv.request.end.push_back(markers3D_offset.points[end_pt].z); 				
 				if(wp_client.call(srv)){
 					ROS_INFO("got the points back:");
 
@@ -158,6 +188,7 @@ float dist_3d(pcl::PointXYZI & pt1, pcl::PointXYZI & pt2){
 	float dz = pt1.z - pt2.z;
 	return std::sqrt( dx*dx +dy*dy + dz*dz);
 }
+
 void detect_key_points(pcl::PointCloud<pcl::PointXYZI> &in_list, pcl::PointCloud<pcl::PointXYZI> & out_traj){
 	float traj_length = 0.0;
 	int mid_points = 2;
@@ -181,3 +212,43 @@ void detect_key_points(pcl::PointCloud<pcl::PointXYZI> &in_list, pcl::PointCloud
 		out_traj.points.push_back(in_list.points[min_ind]);
 	}
 }
+
+
+geometry_msgs::Vector3 find_unit_vector(geometry_msgs::Point32 & pt_tail, geometry_msgs::Point32 & pt_head){
+	float dx = pt_head.x - pt_tail.x;
+	float dy = pt_head.y - pt_tail.y;
+	float dz = pt_head.z - pt_tail.z;
+	float vec_len =  std::sqrt( dx*dx +dy*dy + dz*dz);
+	geometry_msgs::Vector3 unit_vec;
+	// make sure the vector length is not close to 0
+	if (vec_len > 0.0001){
+		unit_vec.x = dx/vec_len; 
+		unit_vec.y = dy/vec_len; 
+		unit_vec.z = dz/vec_len; 
+	}//otherwise just return zero
+	return unit_vec;
+}
+
+
+geometry_msgs::Polygon add_offset(geometry_msgs::Polygon & polygon){
+	int len = markers3D.points.size();
+	float offset_val = 0.005; //offset in METERS
+	geometry_msgs::Polygon polygon_offset;
+	for (int i = 0; i < len; i++){
+		int cur_pt = i ;
+		int front_pt = (i + len +1 )% len;
+		int back_pt = (i + len - 1 )% len;
+		geometry_msgs::Vector3 v1 = find_unit_vector(polygon.points[back_pt], polygon.points[cur_pt]);
+		geometry_msgs::Vector3 v2 = find_unit_vector(polygon.points[front_pt], polygon.points[cur_pt]);
+		geometry_msgs::Point32 point_offset;
+		point_offset.x = polygon.points[cur_pt].x + (v1.x + v2.x)*offset_val;
+		point_offset.y = polygon.points[cur_pt].y + (v1.y + v2.y)*offset_val;
+		point_offset.z = polygon.points[cur_pt].z + (v1.z + v2.z)*offset_val;
+		polygon_offset.points.push_back(point_offset);
+	}	
+
+	
+	return polygon_offset;
+
+}
+
