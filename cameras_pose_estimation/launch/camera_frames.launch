@@ -1,4 +1,5 @@
 <launch>
 	<node pkg = "cameras_pose_estimation" type ="frame_intel.sh" name ="intel_frame"/>
-	<node pkg = "cameras_pose_estimation" type ="frame_basler.sh" name ="intel_basler"/>
+	<node pkg = "cameras_pose_estimation" type ="frame_basler.sh" name ="basler_frame"/>
+	<node pkg = "cameras_pose_estimation" type ="frame_flea.sh" name ="flea_frame"/>
 </launch>

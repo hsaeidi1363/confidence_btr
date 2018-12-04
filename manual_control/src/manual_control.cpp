@@ -431,7 +431,7 @@ int main(int argc, char * argv[]){
         while (ros::ok()){
                
                 try{
-                    listener.lookupTransform("intel", "kuka", ros::Time(0), transform);
+                    listener.lookupTransform("flea", "kuka", ros::Time(0), transform);
                     inv_transform = transform.inverse();
                 }
                 catch (tf::TransformException &ex) {

@@ -3,5 +3,11 @@
 	<include file = "$(find nir_blob_tracker)/launch/nirblobtracker.launch"/>
 	<include file = "$(find cameras_pose_estimation)/launch/camera_frames.launch"/>
 	<include file = "$(find cameras_pose_estimation)/launch/kuka_frame.launch"/>
-	<node pkg="nir_overlay" type="nir_overlay_intel" name="nir_overlay_intel"/>
+	<node pkg="nir_overlay" type="nir_overlay_intel" name="nir_overlay_intel"/>	
+	<group ns="flea">	
+		<include file = "$(find pointgrey_camera_driver)/launch/camera.launch">
+			<arg name="calibrated" value ="1"/>
+			<arg name="camera_serial" value= "arjun"/>
+		</include>
+	</group>
 </launch>

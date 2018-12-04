@@ -52,6 +52,9 @@ target_link_libraries(nir_overlay_intel ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${O
 add_executable(overlay_2D src/overlay_2D.cpp )
 target_link_libraries(overlay_2D ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})
 
+add_executable(overlay_2D_flea src/overlay_2D_flea.cpp )
+target_link_libraries(overlay_2D_flea ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})
+
 
 #add_executable(intel_pcl_filter src/intel_pcl_filter.cpp )
 #target_link_libraries(intel_pcl_filter ${catkin_LIBRARIES} ${PCL_LIBRARIES})

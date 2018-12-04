@@ -5,4 +5,5 @@
 		<param name = "roi_u" value = "150"/>
 		<param name = "roi_b" value = "150"/>
 	</node>
+	<node name = "gui" pkg ="rqt_gui" type ="rqt_gui"/>
 </launch>

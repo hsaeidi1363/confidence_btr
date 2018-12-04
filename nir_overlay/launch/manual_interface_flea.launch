@@ -1,0 +1,9 @@
+<launch>
+	<node name ="overlay_2D_manual" pkg="nir_overlay" type="overlay_2D_flea">
+		<param name = "roi_l" value = "400"/>
+		<param name = "roi_r" value = "400"/>
+		<param name = "roi_u" value = "200"/>
+		<param name = "roi_b" value = "200"/>
+	</node>
+	<node name = "gui" pkg ="rqt_gui" type ="rqt_gui"/>
+</launch>

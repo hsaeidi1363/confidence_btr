@@ -12,6 +12,10 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/calib3d/calib3d.hpp>
 
+#include <tf/transform_listener.h>
+#include <tf/transform_datatypes.h>
+#include <tf_conversions/tf_eigen.h>
+
 #include <sensor_msgs/CameraInfo.h>
 #include <sensor_msgs/Image.h>
 #include<std_msgs/Bool.h>
@@ -120,13 +124,15 @@ int main(int argc, char * argv[]){
 	ros::Rate loop_rate(loop_freq);
 
 	// subscribe to the rectified rgb input (needs the calibration file read in the launch file for the camera)
-	ros::Subscriber cam_sub = nh_.subscribe("/camera/color/image_rect_color",1,get_img);
-	ros::Subscriber caminfo_sub = nh_.subscribe("/camera/color/camera_info",1,get_caminfo);
+	ros::Subscriber cam_sub = nh_.subscribe("/flea/camera/image_color",1,get_img);
+	ros::Subscriber caminfo_sub = nh_.subscribe("flea/camera/camera_info",1,get_caminfo);
 	ros::Subscriber pcl_sub = nh_.subscribe("/nir_overlay_intel/cog",1,get_pcl);
 	ros::Subscriber freeze_path_sub = nh_.subscribe("/freeze_path",1,get_freeze);	
 	
 	//publisher for checking the images and debugging them
 	ros::Publisher overlay_pub = nh_.advertise<sensor_msgs::Image>("niroverlay_2D",1);
+
+	tf::TransformListener listener;
 
 
 
@@ -143,6 +149,27 @@ int main(int argc, char * argv[]){
 		  if(freeze_path){
 			stduv = stduv_old;
 		  }else if(stdxyz.size() != 0){
+			tf::StampedTransform tfRt;
+      			listener.lookupTransform( "flea", "intel", ros::Time(0), tfRt );
+
+
+      			Eigen::Affine3d eigRt;
+    			tf::transformTFToEigen( tfRt, eigRt );
+
+     
+     			 cvt_intel.at<double>( 0, 0 ) = tfRt.getOrigin()[0];
+     			 cvt_intel.at<double>( 1, 0 ) = tfRt.getOrigin()[1];
+     			 cvt_intel.at<double>( 2, 0 ) = tfRt.getOrigin()[2];
+     			 std::cout << tfRt.getOrigin()[0]<< " "<< tfRt.getOrigin()[1] << " "<< tfRt.getOrigin()[2]<<std::endl;
+
+     			 cv::Mat cvR( 3, 3, CV_64FC1 ); // rotation matrix
+     			 tf::Matrix3x3 tfR( tfRt.getRotation() );
+
+     			for( int r=0; r<3; r++ ) {
+     			   for( int c=0; c<3; c++ ) {
+			          cvR_intel.at<double>( r, c ) = tfR[r][c];
+        		    }
+      			}
 			cv::projectPoints(stdxyz , cvR_intel, cvt_intel, K_intel, D_intel, stduv );
 			stduv_old.clear();
 			stduv_old = stduv;
