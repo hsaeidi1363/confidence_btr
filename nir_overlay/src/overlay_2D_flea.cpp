@@ -118,7 +118,10 @@ int main(int argc, char * argv[]){
 	home.getParam("roi_r", roi_r);
 	home.getParam("roi_u", roi_u);
 	home.getParam("roi_b", roi_b);
-	
+
+	bool show_markers = false;
+	home.getParam("show_markers", show_markers);
+
 
         int loop_freq = 10;
 	ros::Rate loop_rate(loop_freq);
@@ -175,7 +178,8 @@ int main(int argc, char * argv[]){
 			stduv_old = stduv;
 		  }
 		  for (int i = 0; i < stduv.size(); i++){		  
-			circle(img, Point(stduv[i].x, stduv[i].y), 1, Scalar(0,255,0), 1, LINE_AA);
+			if (show_markers)		
+				circle(img, Point(stduv[i].x, stduv[i].y), 1, Scalar(0,255,0), 1, LINE_AA);
 		  }
 	   	  Mat img_crop = img(roi);
 		  cv_ptr->image = img_crop;

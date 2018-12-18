@@ -99,13 +99,7 @@ float y_min =0.0;
 float y_max =0.0;
 float z_min =0.0;
 float z_max =0.0;
-float offset_val = 0.005;
 
-void offset_callback(const std_msgs::Float32 & _data) {
-
-  offset_val = _data.data;  // get the value of offset
-
-}
 
 
 
@@ -113,6 +107,7 @@ bool find(tissue_waypoints::Trajectory::Request &req,
           tissue_waypoints::Trajectory::Response &res) {
 
   // 0. Initialization
+
   pclIo pclLoad;
   pclCloudViewer pclView;
   pclPassThrough pt;
@@ -127,15 +122,66 @@ bool find(tissue_waypoints::Trajectory::Request &req,
   cloud_out = pointcloud_in.makeShared();
   pt.setInputCloud(*cloud_out);
 
-  pt.setFilterXlimit(x_min - offset_val, x_max + offset_val);
+  pt.setFilterXlimit(x_min , x_max );
 
   pt.filterProcess(*cloud_out);
   pt.setInputCloud(*cloud_out);
   pt.setFilterZlimit(z_min, z_max);
   pt.filterProcess(*cloud_out);
   pt.setInputCloud(*cloud_out);
-  pt.setFilterYlimit(y_min - offset_val, y_max + offset_val);
+  pt.setFilterYlimit(y_min , y_max);
   pt.filterProcess(*cloud_out);
+  pcl::PointCloud<pcl::PointXYZ> dbg_pcd;
+  dbg_pcd = *cloud_out;
+
+  std_msgs::Header header;
+  header.stamp = ros::Time::now();
+  header.frame_id = std::string("camera_color_optical_frame");
+  dbg_pcd.header = pcl_conversions::toPCL(header);
+  dbg_pub.publish(dbg_pcd);
+
+  float x_start = req.start[0];
+  float y_start = req.start[1];
+  float z_start = req.start[2];
+  float x_end = req.end[0];
+  float y_end = req.end[1];
+  float z_end = req.end[2];
+  //ROS_INFO(" GOT THIS START AND END POINTS");
+  //ROS_INFO("%f ---- %f----%f",x_start,y_start,z_start);
+  //ROS_INFO("%f ---- %f----%f",x_end,y_end,z_end);
+
+  float short_x_min = std::min(x_start,x_end);
+  float short_y_min = std::min(y_start,y_end);
+  float short_z_min = std::min(z_start,z_end);
+  float short_x_max = std::max(x_start,x_end);
+  float short_y_max = std::max(y_start,y_end);
+  float short_z_max = std::max(z_start,z_end);
+  //ROS_INFO(" GOT THIS MAX AND MIN VALUES");
+  //ROS_INFO("%f ---- %f----%f",short_x_min,short_y_min,short_z_min);
+  //ROS_INFO("%f ---- %f----%f",short_x_max,short_y_max,short_z_max);
+  float short_offset = 0.003;
+  short_x_min -= short_offset;
+  short_y_min -= short_offset;
+  short_z_min -= short_offset;
+  short_x_max += short_offset;
+  short_y_max += short_offset;
+  short_z_max += short_offset;
+  ///ROS_INFO(" ADDED OFFSET TO MAX AND MIN VALUES");
+  //ROS_INFO("%f ---- %f----%f",short_x_min,short_y_min,short_z_min);
+  //ROS_INFO("%f ---- %f----%f",short_x_max,short_y_max,short_z_max);
+  pt.setFilterXlimit(short_x_min, short_x_max);
+  //ROS_INFO(" CROPPED FOR THE SECOND TIME");
+  pt.filterProcess(*cloud_out);
+  pt.setInputCloud(*cloud_out);
+  pt.setFilterZlimit(z_min, z_max);
+  pt.filterProcess(*cloud_out);
+  pt.setInputCloud(*cloud_out);
+  pt.setFilterYlimit(short_y_min , short_y_max );
+  pt.filterProcess(*cloud_out);
+
+  
+
+
   //  4. Down sample the point cloud
   //ROS_INFO(" 4. Down sampling the point cloud, please wait...");
   //vx.setInputCloud(*cloud_out);
@@ -218,14 +264,8 @@ bool find(tissue_waypoints::Trajectory::Request &req,
   // std::vector<Shx> ptsOut;
   delaunay3 dy3;
   dy3.setInputCloud(*cloud_out);
-  pcl::PointCloud<pcl::PointXYZ> dbg_pcd;
-  dbg_pcd = *cloud_out;
-  pcl::io::savePCDFile("beforefreez.pcd",*cloud_out, true);
-  std_msgs::Header header;
-  header.stamp = ros::Time::now();
-  header.frame_id = std::string("camera_color_optical_frame");
-  dbg_pcd.header = pcl_conversions::toPCL(header);
-  dbg_pub.publish(dbg_pcd);
+
+
   ROS_INFO(" 10.b.1");
   dy3.putPointCloudIntoShx();
   ROS_INFO(" 10.b.2");
@@ -289,8 +329,7 @@ int main(int argc, char **argv) {
 
   // ros::Publisher pub_pcl = nh.advertise<PointCloud>("test", 10);
   ros::Subscriber sub_pcl = n.subscribe("/d415/filtered_points", 1, &callback);
-  ros::Subscriber sub_offset = n.subscribe("/traj_offset", 1, &offset_callback);
-  dbg_pub = n.advertise<pcl::PointCloud<pcl::PointXYZ>>("dbg_tissue_plan",1);
+  dbg_pub = n.advertise<pcl::PointCloud<pcl::PointXYZ>>("/d415/passthrough",1);
   ros::ServiceServer service = n.advertiseService("FindTrajectory", &find);
 
   ros::Rate loop_rate(10);

@@ -10,6 +10,7 @@
 #include<geometry_msgs/Point32.h>
 
 bool freeze_path = false;
+bool cropped_pcl_available = false;
 
 void get_freeze(const std_msgs::Bool & _data){
 	freeze_path = _data.data;	
@@ -29,10 +30,20 @@ void get_polygon(const geometry_msgs::Polygon & _data){
 }
 
 pcl::PointCloud<pcl::PointXYZI> marker_cog_pcl;
+pcl::PointCloud<pcl::PointXYZI> cropped_pcl;
 
 void get_pcl(const sensor_msgs::PointCloud2Ptr& cloud){
 	pcl::fromROSMsg(*cloud, marker_cog_pcl);
 	ROS_INFO("got a new reading from marker COG point cloud");
+
+}
+
+
+void get_cropped_pcl(const sensor_msgs::PointCloud2Ptr& cloud){
+	pcl::fromROSMsg(*cloud, cropped_pcl);
+	ROS_INFO("got a CROPPED point cloud from passthrough filter");
+	cropped_pcl_available = true;
+
 
 }
 //some variables related to the filter using RLS method for fixed positions of the markers
@@ -69,6 +80,8 @@ int main(int argc, char **argv){
 	ros::Rate loop_rate(2);
 	ros::Subscriber freeze_path_sub = n.subscribe("/freeze_path",1,get_freeze);	
 	ros::Subscriber pcl_sub = n.subscribe("/nir_overlay_intel/cog",1,get_pcl);
+	ros::Subscriber cropped_pcl_sub = n.subscribe("/d415/passthrough",1,get_cropped_pcl);
+
 	ros::Subscriber polygon_sub = n.subscribe("/nir_overlay_intel/polygon3D_cog",1, get_polygon);
 	ros::Publisher traj_pub = n.advertise<pcl::PointCloud<pcl::PointXYZI> > ("tissue_traj",1);
 	ros::Publisher short_traj_pub = n.advertise<pcl::PointCloud<pcl::PointXYZI> > ("short_tissue_traj",1);
@@ -145,7 +158,13 @@ int main(int argc, char **argv){
 						output_traj.points.push_back(xyzi);
 						pt_list.points.push_back(xyzi);
 					}
-					pt_list.points.push_back(marker_cog_pcl.points[end_pt]);
+					//pt_list.points.push_back(marker_cog_pcl.points[end_pt]);
+					pcl::PointXYZI xyzi;
+					xyzi.x = markers3D_offset.points[end_pt].x;	
+					xyzi.y = markers3D_offset.points[end_pt].y;	
+					xyzi.z = markers3D_offset.points[end_pt].z;
+					xyzi.intensity = 100;	
+					pt_list.points.push_back(xyzi);
 					detect_key_points(pt_list,short_output_traj);
 					std_msgs::Header header;
 					header.stamp = ros::Time::now();
@@ -191,7 +210,7 @@ float dist_3d(pcl::PointXYZI & pt1, pcl::PointXYZI & pt2){
 
 void detect_key_points(pcl::PointCloud<pcl::PointXYZI> &in_list, pcl::PointCloud<pcl::PointXYZI> & out_traj){
 	float traj_length = 0.0;
-	int mid_points = 2;
+	int mid_points = 3;
 	std::vector<float> points_loc;// the location of point on the path based on the traveled distance between the start and end point
 	points_loc.push_back(0.0); //distance of the start point on the path is zero
 	for (int i = 1; i < in_list.points.size(); i++){
@@ -244,6 +263,32 @@ geometry_msgs::Polygon add_offset(geometry_msgs::Polygon & polygon){
 		point_offset.x = polygon.points[cur_pt].x + (v1.x + v2.x)*offset_val;
 		point_offset.y = polygon.points[cur_pt].y + (v1.y + v2.y)*offset_val;
 		point_offset.z = polygon.points[cur_pt].z + (v1.z + v2.z)*offset_val;
+		if(cropped_pcl_available){
+			pcl::PointCloud<pcl::PointXYZI>::iterator pi = cropped_pcl.begin();
+			pcl::PointCloud<pcl::PointXYZI>::iterator pi_min = cropped_pcl.begin();
+			pcl::PointXYZI xyzi;
+			xyzi.x = point_offset.x;	
+			xyzi.y = point_offset.y;	
+			xyzi.z = point_offset.z;
+			xyzi.intensity = 100;
+			float min_dist = 100;
+			for( ; pi!=cropped_pcl.end(); pi++ ) {
+				pcl::PointXYZI xyzi2;
+				xyzi2.x = pi->x;	
+				xyzi2.y = pi->y;	
+				xyzi2.z = pi->z;
+				xyzi2.intensity = 100;
+				float dist_tmp = dist_3d(xyzi,xyzi2);
+				if (dist_tmp < min_dist){
+					min_dist = dist_tmp;
+					pi_min = pi;
+				}
+
+			}
+			point_offset.x = pi_min->x;
+			point_offset.y = pi_min->y;
+			point_offset.z = pi_min->z;
+		}
 		polygon_offset.points.push_back(point_offset);
 	}	
 

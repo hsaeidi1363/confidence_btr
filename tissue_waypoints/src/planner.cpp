@@ -83,9 +83,9 @@ int main(int argc, char **argv){
 			  pose_in_world = cam_in_rob(tf::Vector3(ctr->x, ctr->y, ctr->z)); 
 			  trajectory_msgs::JointTrajectoryPoint plan_pt; 
 		 
-			  plan_pt.positions.push_back(pose_in_world.x()+ 0.001); 
-			  plan_pt.positions.push_back(pose_in_world.y()+ 0.002); 
-			  plan_pt.positions.push_back(pose_in_world.z()- 0.007); 
+			  plan_pt.positions.push_back(pose_in_world.x()+ 0.000); 
+			  plan_pt.positions.push_back(pose_in_world.y()+ 0.001); 
+			  plan_pt.positions.push_back(pose_in_world.z()- 0.005); 
 
 			  plan_pt.positions.push_back(rob_pos.angular.x);
 			  plan_pt.positions.push_back(rob_pos.angular.y);
@@ -113,7 +113,7 @@ int main(int argc, char **argv){
 				plan.points.clear();
 				dbg_cloud.points.clear();
 				ROS_INFO("cleared the old sorted plan and the length is now %d",(int) plan.points.size());
-				for (int i = 0; i < 3; i++){
+				for (int i = 0; i < 2; i++){
 				  int ind = (i + min_ind) % waypoints_len;
 				  plan.points.push_back(unsorted_plan.points[ind]);
 				  tf::Vector3 pose_in_cam;
