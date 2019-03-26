@@ -49,6 +49,10 @@ add_definitions(${PCL_DEFINITIONS})
 add_executable(nir_overlay_intel src/node_intel.cpp )
 target_link_libraries(nir_overlay_intel ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})
 
+
+add_executable(nir_overlay_intel_tumor src/node_intel_tumor.cpp )
+target_link_libraries(nir_overlay_intel_tumor ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})
+
 add_executable(overlay_2D src/overlay_2D.cpp )
 target_link_libraries(overlay_2D ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})
 

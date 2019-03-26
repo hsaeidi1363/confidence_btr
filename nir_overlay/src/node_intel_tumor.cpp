@@ -63,7 +63,9 @@ class NIROverlay {
 
     ros::Publisher pub_cog;          // publish the resulting camera
     ros::Publisher pub_3Dpolygon_cog;
+    ros::Publisher pub_3Dpolygon_tumor;
     ros::Publisher pub_dbg;   
+    ros::Publisher pub_tumor;   
     ros::Publisher pub_kuka_dbg;
     size_t seq;
 
@@ -108,7 +110,9 @@ NIROverlay::NIROverlay( ros::NodeHandle nh, ros::NodeHandle nhp ) :
 
     pub_cog=nhp.advertise< pcl::PointCloud<pcl::PointXYZI> >("cog", 1);
     pub_3Dpolygon_cog= nhp.advertise<geometry_msgs::Polygon>( "polygon3D_cog", 100 );
+    pub_3Dpolygon_tumor= nhp.advertise<geometry_msgs::Polygon>( "polygon3D_tumor", 100 );
     pub_dbg=nhp.advertise< pcl::PointCloud<pcl::PointXYZI> >("overlayDBG", 1);
+    pub_tumor=nhp.advertise< pcl::PointCloud<pcl::PointXYZI> >("tumor", 1);
     pub_kuka_dbg=nhp.advertise< geometry_msgs::Polygon>("kuka_polygon", 1);
     std::cout << sub_cinfo.getTopic() << " " 
       << sub_cog.getTopic() << " " 
@@ -136,6 +140,7 @@ void NIROverlay::Callback( const sensor_msgs::CameraInfo& msginfo,
       listener_dbg.lookupTransform( "kuka", "intel", ros::Time(0), tfRt_dbg );
       geometry_msgs::Polygon kuka_polygon;
       geometry_msgs::Polygon polygon3D;
+      geometry_msgs::Polygon polygon3D_tumor;
 
       Eigen::Affine3d eigRt;
       tf::transformTFToEigen( tfRt, eigRt );
@@ -175,6 +180,7 @@ void NIROverlay::Callback( const sensor_msgs::CameraInfo& msginfo,
 
       // 3D coordinates 
       pcl::PointCloud<pcl::PointXYZI> pclcog;
+      pcl::PointCloud<pcl::PointXYZI> pcltumor;
       //pcl::PointCloud<pcl::PointXYZRGB> pclxyzrgb(pclxyzi.width,pclxyzi.height);
       //pcl::PointCloud<pcl::PointXYZRGB>::iterator prgb=pclxyzrgb.begin();
 
@@ -188,6 +194,7 @@ void NIROverlay::Callback( const sensor_msgs::CameraInfo& msginfo,
             (uint32_t)(pi->intensity)<<8  |
             (uint32_t)(pi->intensity));
         prgb->rgb = *reinterpret_cast<float*>(&rgb);
+
         prgb->x = pi->x;
         prgb->y = pi->y;
         prgb->z = pi->z;
@@ -200,13 +207,70 @@ void NIROverlay::Callback( const sensor_msgs::CameraInfo& msginfo,
       cv::projectPoints( stdxyz, cvR, cvt, K, D, stduv );
       geometry_msgs::Point32 polygon3D_pt;
       std::vector< cv::Mat > cvcog( cog.polygon.points.size() );
+      double cog_x = 0.0;
+      double cog_y = 0.0;
       for( size_t j=0; j<cog.polygon.points.size(); j++ ){
         cv::Point2f cogj( cog.polygon.points[j].x, cog.polygon.points[j].y );
 	//polygon3D_pt.x =cog.polygon.points[j].x;
 	//polygon3D_pt.y =cog.polygon.points[j].y;
 	//polygon3D.points.push_back(polygon3D_pt);
+	cog_x += cog.polygon.points[j].x;
+	cog_y += cog.polygon.points[j].y;
+
         cvcog[j] = cv::Mat( cogj );
       }
+      // codes added for sudo tumor resection etc
+     
+      cog_x /= (float)cog.polygon.points.size();
+      cog_y /= (float)cog.polygon.points.size();
+     
+      size_t tumor_points = 24;
+      std::vector< cv::Mat > tumor(tumor_points);
+ 
+      for( size_t j=0; j<tumor_points; j++ ){
+	double theta = (double)j*tumor_points/(2*M_PI);
+	double radius = 40; //pixel radius
+        cv::Point2f tumorj( (int) cog_x + radius*cos(theta), (int) cog_y + radius*sin(theta));
+        tumor[j] = cv::Mat( tumorj );
+      }
+      for( size_t j=0; j<tumor_points; j++ ){
+	      bool found = false;
+	      for( size_t i=0; i<stduv.size(); i++ ){
+
+		// if the 3D point projection is within the NIR image, then overlay 
+		// the NIR intensity on the point cloud +30 on the red channel
+		
+	    	  cv::Mat stduvi( stduv[i] );
+		  //rsd - is this value the radius of search in pixels??
+		  if( cv::norm( tumor[j], stduvi ) < 3 && !found){
+		    cv::Point2f cj( 100000,100000 );
+		    tumor[j] = cv::Mat(cj);
+		    pcl::PointXYZI xyzi;
+		    xyzi.x = stdxyz[i].x;
+		    xyzi.y = stdxyz[i].y;
+		    xyzi.z = stdxyz[i].z;
+		    xyzi.intensity = j;
+		    pcltumor.push_back( xyzi );
+		    polygon3D_pt.x = xyzi.x;
+		    polygon3D_pt.y = xyzi.y;
+		    polygon3D_pt.z = xyzi.z;
+		    polygon3D_tumor.points.push_back(polygon3D_pt);
+
+		    //some debugging for the kuka frame coordinates of the COG
+		  //  tf::Vector3 pos_in_kuka;
+		  //  pos_in_kuka = tfRt_dbg(tf::Vector3(xyzi.x,xyzi.y,xyzi.z));
+		  //  geometry_msgs::Point32 kuka_pt;
+		  //  kuka_pt.x = pos_in_kuka.x();
+		  //  kuka_pt.y = pos_in_kuka.y();
+		  //  kuka_pt.z = pos_in_kuka.z();
+		  //  kuka_polygon.points.push_back(kuka_pt);
+		    found = true;
+		  }
+	    }
+      }
+		
+      // end of codes added for sudo tumor resection etc
+
 
       for( size_t j=0; j<cog.polygon.points.size(); j++ ){
 	      bool found = false;
@@ -250,10 +314,13 @@ void NIROverlay::Callback( const sensor_msgs::CameraInfo& msginfo,
       header.frame_id = std::string( "/camera_color_optical_frame" );
 		
       pclcog.header = pcl_conversions::toPCL( header );
+      pcltumor.header = pcl_conversions::toPCL( header );
       pcldbg.header = pcl_conversions::toPCL( header );
       pub_cog.publish( pclcog );
       pub_dbg.publish(pcldbg);
+      pub_tumor.publish(pcltumor);
       pub_3Dpolygon_cog.publish(polygon3D);
+      pub_3Dpolygon_tumor.publish(polygon3D_tumor);
       pub_kuka_dbg.publish(kuka_polygon);
 
     }
