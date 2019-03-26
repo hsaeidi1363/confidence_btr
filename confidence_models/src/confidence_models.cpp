@@ -37,6 +37,8 @@ int main(int argc, char **argv){
   ros::Subscriber cropped_pcl_sub = nh_.subscribe("/d415/passthrough", 1, get_cropped_pcl);
   ros::Subscriber polygon_sub = nh_.subscribe("/nir_overlay_intel/polygon3D_cog",1, get_polygon);
 
+  ros::Publisher pub_pcl= nh_.advertise<sensor_msgs::PointCloud2>( "/planefit_dbg", 10 );
+
   geometry_msgs::Vector3 x0;
   geometry_msgs::Vector3 x1;
   geometry_msgs::Vector3 x2;
@@ -69,7 +71,7 @@ int main(int argc, char **argv){
  
   cout << point_check<<endl;
 
-
+  int seq = 1;
   while(ros::ok()){
 
 		int pts_len = markers3D.points.size();
@@ -94,7 +96,29 @@ int main(int argc, char **argv){
 			}
 
 		}
+		//plane parameters
+		float a = 0.0;
+		float b = 0.0;
+		float c = -1.0;
+		float d = 0.0;
+		fit_plane(a, b, d, cropped_pcl);
+		std::cout<<" the plane parameters are: "<< a << ", "<< b << ", "<< c<< ", "<< d<< std::endl;
+		// checking the distance of the camera origing to the fitted plane
+		float e = sqrt(a*a + b*b + c*c);
+		float f = fabs(d)/e; // since the origin has (0,0,0)=> ax+by+z+d is equal to d
+		std::cout<<" distance from origin is: " << f<< std::endl;
 		std::cout<<" end of one round"<<std::endl;
+
+		pcl::PointCloud<pcl::PointXYZI> pclplane;
+
+		show_plane(a,b,d, pclplane);
+		std_msgs::Header header;
+		header.stamp = ros::Time::now();
+		header.seq = seq++;
+		header.frame_id = std::string( "/camera_color_optical_frame" );
+		
+		pclplane.header = pcl_conversions::toPCL( header );
+		pub_pcl.publish( pclplane );
 
 		loop_rate.sleep();
 		ros::spinOnce();

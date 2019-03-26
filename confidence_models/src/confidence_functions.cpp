@@ -6,7 +6,7 @@
 #include <pcl/common/transforms.h>
 #include <pcl_conversions/pcl_conversions.h> //rsd - was giving error on swami
 #include<geometry_msgs/Vector3.h>
-
+#include<Eigen/Dense>
 
 
 using namespace std;
@@ -32,6 +32,16 @@ geometry_msgs::Vector3 subt(geometry_msgs::Vector3 & a_ , geometry_msgs::Vector3
   c.z = a_.z - b_.z;
 
   return c;
+}
+
+float vec_len(geometry_msgs::Vector3 & a_ , geometry_msgs::Vector3 & b_){
+
+  geometry_msgs::Vector3 c;
+  c.x = a_.x - b_.x;
+  c.y = a_.y - b_.y;
+  c.z = a_.z - b_.z;
+
+  return norm(c);
 }
 
 float norm(geometry_msgs::Vector3 & a_){
@@ -68,6 +78,7 @@ float calc_density(geometry_msgs::Vector3 x1, geometry_msgs::Vector3 x2, pcl::Po
 	pcl::PointCloud<pcl::PointXYZI>::iterator pi=pcd.begin();
 	float density = 0.0;
 	int ctr = 0;
+  float r_c = 0.005;//radius of the cylinder for finding point dentisty between two points
 	for( ; pi!=pcd.end(); pi++ ) {
 
 		geometry_msgs::Vector3 x0;
@@ -78,10 +89,62 @@ float calc_density(geometry_msgs::Vector3 x1, geometry_msgs::Vector3 x2, pcl::Po
 		float distance = 0.0;
 		distance = dist_from_line(x0, x1, x2);
   
-		if (distance <= 0.005)
+		if (distance <= r_c)
 			density += 1.0;
  		ctr ++;
 	}
 
+ // double h = vec_len(x1, x2);
+ // double cyl_volume = M_PI*r_c*r_c*h;//volume of the cylinder formed by x1-x2 line and radius r_c
+ // cout << "volume was: " << cyl_volume<< " for h= "<< h << endl; 
 	return density/pcd.points.size();
+}
+
+
+//
+void fit_plane(float & _a, float & _b, float & _d,  pcl::PointCloud<pcl::PointXYZI> pcd){
+  int pts_len = pcd.points.size();
+
+  Eigen::MatrixXd A(pts_len, 3);
+  Eigen::VectorXd B(pts_len); 
+  Eigen::VectorXd C(3);
+  Eigen::MatrixXd A_p(3,3);
+
+	pcl::PointCloud<pcl::PointXYZI>::iterator pi=pcd.begin();
+
+  int ctr = 0;
+
+	for( ; pi!=pcd.end(); pi++ ) {
+    A(ctr, 0) = pi->x; 
+    A(ctr, 1) = pi->y; 
+    A(ctr, 2) = 1;
+    B(ctr) = pi->z;
+ 
+    ctr ++;
+  }
+
+  A_p = A.transpose()*A;
+  A_p = A_p.inverse()*A.transpose();
+  C = A_p*B;
+  _a = C(0);
+  _b = C(1);
+  _d = C(2);
+
+}
+
+void show_plane(float & _a, float & _b, float & _d,  pcl::PointCloud<pcl::PointXYZI> & pcd){
+
+  pcd.points.clear();
+
+  for (float x = -0.05; x <= 0.05; x+= 0.002){
+    for(float y = -0.05; y <= 0.05; y+= 0.002){
+      pcl::PointXYZI pt;
+      pt.x = x;
+      pt.y = y;
+      pt.z = _a*x + _b*y +_d;
+      pt.intensity = 10;
+      pcd.points.push_back(pt);
+    }
+  }
+
 }
