@@ -218,8 +218,12 @@ target_link_libraries(waypoints_client ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 add_executable(waypoints_linear src/waypoints_linear.cpp)
 target_link_libraries(waypoints_linear ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
+add_executable(waypoints_tumor src/waypoints_tumor.cpp)
+target_link_libraries(waypoints_tumor ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
 add_executable(tissue_planner src/planner.cpp)
 target_link_libraries(tissue_planner ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(waypoints_rgbcontour src/waypoints_rgbcontour.cpp)
 target_link_libraries(waypoints_rgbcontour ${catkin_LIBRARIES} ${OpenCV_LIBS})
+
