@@ -112,7 +112,8 @@ int main(int argc, char **argv){
 			detect_key_points(pt_list,short_output_traj);
 
 			*/			
-			detect_key_points(tumor_pcl,short_output_traj);
+			//detect_key_points(tumor_pcl,short_output_traj);
+			short_output_traj = tumor_pcl;
 
 			std_msgs::Header header;
 			header.stamp = ros::Time::now();

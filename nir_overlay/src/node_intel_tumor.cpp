@@ -36,12 +36,13 @@ class NIROverlay {
 
     typedef message_filters::Subscriber<sensor_msgs::CameraInfo>     SubCInfo;
     typedef message_filters::Subscriber<geometry_msgs::PolygonStamped> SubCOG;
+  //  typedef message_filters::Subscriber<geometry_msgs::PolygonStamped> SubTumor;
     typedef image_transport::SubscriberFilter                        SubImage;
     typedef message_filters::Subscriber<sensor_msgs::PointCloud2>    SubPCL;
 
     typedef 
       message_filters::sync_policies::ApproximateTime
-      < sensor_msgs::CameraInfo, geometry_msgs::PolygonStamped, sensor_msgs::PointCloud2 > 
+      < sensor_msgs::CameraInfo, geometry_msgs::PolygonStamped, geometry_msgs::PolygonStamped,  sensor_msgs::PointCloud2 > 
       //< sensor_msgs::CameraInfo, sensor_msgs::Image, sensor_msgs::PointCloud2 > 
       Policy;
 
@@ -56,6 +57,7 @@ class NIROverlay {
 
     NIROverlay::SubCInfo sub_cinfo;  // subscribe to NIR camera parameters
     NIROverlay::SubCOG   sub_cog;  // subscribe to NIR image
+    NIROverlay::SubCOG   sub_tumor;  // subscribe to offline
     //NIROverlay::SubImage sub_image;  // subscribe to NIR image
     NIROverlay::SubPCL   sub_pcl;    // subscribe to PCL
 
@@ -81,6 +83,7 @@ class NIROverlay {
     // main callback function
     void Callback( const sensor_msgs::CameraInfo& msginfo,
         const geometry_msgs::PolygonStamped& cog,
+        const geometry_msgs::PolygonStamped& offline_tumor,
         //const sensor_msgs::Image& msgimg,
         const sensor_msgs::PointCloud2& msgpcl );
 
@@ -100,9 +103,10 @@ NIROverlay::NIROverlay( ros::NodeHandle nh, ros::NodeHandle nhp ) :
   it( nh ),
   sub_cinfo( nh, "/pylon_camera_node/camera_info", 1 ),
   sub_cog( nh, "/markers/cog", 1 ),
+  sub_tumor( nh, "/offline_tumor", 1 ),
   //sub_image( it, "/basler/image_rect", 1 ),
   sub_pcl( nh, "/d415/filtered_points", 1 ),
-  sync( NIROverlay::Policy(500), sub_cinfo, sub_cog, sub_pcl ),
+  sync( NIROverlay::Policy(500), sub_cinfo, sub_cog, sub_tumor, sub_pcl ),
   //sync( NIROverlay::Policy(100), sub_cinfo, sub_image, sub_pcl ),
   seq( 0 ) {
 
@@ -126,6 +130,7 @@ NIROverlay::NIROverlay( ros::NodeHandle nh, ros::NodeHandle nhp ) :
 void NIROverlay::Callback( const sensor_msgs::CameraInfo& msginfo,
 
 			   const geometry_msgs::PolygonStamped& cog,
+			   const geometry_msgs::PolygonStamped& offline_tumor,
 			   //const sensor_msgs::Image& msgimg,
 			   const sensor_msgs::PointCloud2& msgpcl ) {
 
@@ -224,16 +229,24 @@ void NIROverlay::Callback( const sensor_msgs::CameraInfo& msginfo,
       cog_x /= (float)cog.polygon.points.size();
       cog_y /= (float)cog.polygon.points.size();
      
-      size_t tumor_points = 24;
-      std::vector< cv::Mat > tumor(tumor_points);
+      size_t tumor_points = offline_tumor.polygon.points.size() ;
+//      if (tumor_points == 0){
+//	      tumor_points = 24;
+//	      std::vector< cv::Mat > tumor(tumor_points);
  
-      for( size_t j=0; j<tumor_points; j++ ){
-	double theta = (double)j*tumor_points/(2*M_PI);
-	double radius = 40; //pixel radius
-        cv::Point2f tumorj( (int) cog_x + radius*cos(theta), (int) cog_y + radius*sin(theta));
-        tumor[j] = cv::Mat( tumorj );
-      }
-      for( size_t j=0; j<tumor_points; j++ ){
+//	      for( size_t j=0; j<tumor_points; j++ ){
+//		double theta = (double)j*tumor_points/(2*M_PI);
+//		double radius = 40; //pixel radius
+//        	cv::Point2f tumorj( (int) cog_x + radius*cos(theta), (int) cog_y + radius*sin(theta));
+//        	tumor[j] = cv::Mat( tumorj );
+//	      }	
+      if(tumor_points > 0){
+	std::vector< cv::Mat > tumor(tumor_points);
+	for( size_t j=0; j<tumor_points; j++ ){
+        	cv::Point2f tumorj( (int) offline_tumor.polygon.points[j].x, (int) offline_tumor.polygon.points[j].y);
+        	tumor[j] = cv::Mat( tumorj );
+	}	
+	for( size_t j=0; j<tumor_points; j++ ){
 	      bool found = false;
 	      for( size_t i=0; i<stduv.size(); i++ ){
 
@@ -267,7 +280,9 @@ void NIROverlay::Callback( const sensor_msgs::CameraInfo& msginfo,
 		    found = true;
 		  }
 	    }
+      	}	
       }
+      
 		
       // end of codes added for sudo tumor resection etc
 

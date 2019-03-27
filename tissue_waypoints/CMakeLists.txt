@@ -227,3 +227,6 @@ target_link_libraries(tissue_planner ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 add_executable(waypoints_rgbcontour src/waypoints_rgbcontour.cpp)
 target_link_libraries(waypoints_rgbcontour ${catkin_LIBRARIES} ${OpenCV_LIBS})
 
+
+add_executable(tumor_loader src/tumor_loader.cpp )
+target_link_libraries(tumor_loader ${catkin_LIBRARIES})
