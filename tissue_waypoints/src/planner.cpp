@@ -84,8 +84,8 @@ int main(int argc, char **argv){
 			  trajectory_msgs::JointTrajectoryPoint plan_pt; 
 		 
 			  plan_pt.positions.push_back(pose_in_world.x()+ 0.000); 
-			  plan_pt.positions.push_back(pose_in_world.y()+ 0.001); 
-			  plan_pt.positions.push_back(pose_in_world.z()+ 0.005); 
+			  plan_pt.positions.push_back(pose_in_world.y()+ 0.0045); 
+			  plan_pt.positions.push_back(pose_in_world.z()- 0.0065); 
 
 			  plan_pt.positions.push_back(rob_pos.angular.x);
 			  plan_pt.positions.push_back(rob_pos.angular.y);

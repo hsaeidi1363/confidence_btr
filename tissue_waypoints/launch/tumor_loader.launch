@@ -1,5 +1,5 @@
 <launch>
 	<node pkg = "tissue_waypoints" type = "tumor_loader" name = "tumor_loader" output = "screen">
-            <param name="plan_file_name" value="/plans/tumor_test.txt"/>
+            <param name="plan_file_name" value="/plans/fr3.txt"/>
 	</node>
 </launch>
