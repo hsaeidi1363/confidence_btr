@@ -91,7 +91,9 @@ int main(int argc, char **argv){
 				x2.z = markers3D.points[end_pt].z;
 
 				float density = calc_density(x1, x2, cropped_pcl);
-				std::cout<<"density between points"<< start_pt<< " and " << end_pt<< " is: "<< density<<std::endl;
+				float noise = calc_noise(x1, x2, cropped_pcl);
+				std::cout<<"density between points "<< start_pt<< " and " << end_pt<< " is: "<< density<<std::endl;
+				std::cout<<"noise between points "<< start_pt<< " and " << end_pt<< " is: "<< noise<<std::endl;
 
 			}
 
@@ -106,7 +108,13 @@ int main(int argc, char **argv){
 		// checking the distance of the camera origing to the fitted plane
 		float e = sqrt(a*a + b*b + c*c);
 		float f = fabs(d)/e; // since the origin has (0,0,0)=> ax+by+z+d is equal to d
+		//http://www.nabla.hr/CG-LinesPlanesIn3DA3.htm
+		// angular position of the fitted plane compared to the x axis of camera
+		float alpha = acos(fabs(a/e));
+		// angular position of the fitted plane compared to the y axis of camera		
+		float beta = acos(fabs(b/e));
 		std::cout<<" distance from origin is: " << f<< std::endl;
+		std::cout<<" rotation angle around X is: " << alpha<<" rotation angle around Y is: " << beta<< std::endl;
 		std::cout<<" end of one round"<<std::endl;
 
 		pcl::PointCloud<pcl::PointXYZI> pclplane;

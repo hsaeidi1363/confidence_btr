@@ -7,11 +7,13 @@
 #include <pcl_conversions/pcl_conversions.h> //rsd - was giving error on swami
 #include<geometry_msgs/Vector3.h>
 #include<Eigen/Dense>
+#include <pcl/filters/statistical_outlier_removal.h>
+
 
 
 using namespace std;
 
-
+// cross product of two 3D vectors
 geometry_msgs::Vector3 cross_product(geometry_msgs::Vector3 & a_, geometry_msgs::Vector3 & b_){
 
   geometry_msgs::Vector3 c;
@@ -23,7 +25,7 @@ geometry_msgs::Vector3 cross_product(geometry_msgs::Vector3 & a_, geometry_msgs:
   return c;
 }
 
-
+// subtraction of two 3D vectors A-B
 geometry_msgs::Vector3 subt(geometry_msgs::Vector3 & a_ , geometry_msgs::Vector3 & b_){
 
   geometry_msgs::Vector3 c;
@@ -34,6 +36,7 @@ geometry_msgs::Vector3 subt(geometry_msgs::Vector3 & a_ , geometry_msgs::Vector3
   return c;
 }
 
+// finding the vector length between points A and B
 float vec_len(geometry_msgs::Vector3 & a_ , geometry_msgs::Vector3 & b_){
 
   geometry_msgs::Vector3 c;
@@ -50,7 +53,7 @@ float norm(geometry_msgs::Vector3 & a_){
 
 }
 
-
+// distance of a point x0 from the line formed by x1 and x2
 float dist_from_line(geometry_msgs::Vector3 x0, geometry_msgs::Vector3 x1, geometry_msgs::Vector3 x2){
 
   geometry_msgs::Vector3 diff1;  
@@ -73,12 +76,12 @@ float dist_from_line(geometry_msgs::Vector3 x0, geometry_msgs::Vector3 x1, geome
 
 }
 
-
+// finds the number of points in the point cloud that fit in a cylinder between a two marker positions (i.e. start and end points)
 float calc_density(geometry_msgs::Vector3 x1, geometry_msgs::Vector3 x2, pcl::PointCloud<pcl::PointXYZI> pcd){
 	pcl::PointCloud<pcl::PointXYZI>::iterator pi=pcd.begin();
 	float density = 0.0;
 	int ctr = 0;
-  float r_c = 0.005;//radius of the cylinder for finding point dentisty between two points
+  	float r_c = 0.005;//radius of the cylinder for finding point dentisty between two points
 	for( ; pi!=pcd.end(); pi++ ) {
 
 		geometry_msgs::Vector3 x0;
@@ -100,8 +103,46 @@ float calc_density(geometry_msgs::Vector3 x1, geometry_msgs::Vector3 x2, pcl::Po
 	return density/pcd.points.size();
 }
 
+// estimate the noise level on the points inside a cylinder between points x1 and x2
+float calc_noise(geometry_msgs::Vector3 x1, geometry_msgs::Vector3 x2, pcl::PointCloud<pcl::PointXYZI> pcd){
+	pcl::PointCloud<pcl::PointXYZI>::iterator pi=pcd.begin();
+	pcl::PointCloud<pcl::PointXYZ> cloud_in;
+	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_out;
+	
+	float r_c = 0.005;//radius of the cylinder for finding point dentisty between two points
+	for( ; pi!=pcd.end(); pi++ ) {
 
-//
+		geometry_msgs::Vector3 x0;
+		x0.x = pi->x;
+		x0.y = pi->y;
+		x0.z = pi->z;
+	
+		float distance = 0.0;
+		distance = dist_from_line(x0, x1, x2);
+  
+		if (distance <= r_c){
+			pcl::PointXYZ tmp;
+			tmp.x = x0.x;
+			tmp.y = x0.y;
+			tmp.z = x0.z;
+			cloud_in.points.push_back(tmp);
+	 	}
+	}
+	cloud_out = cloud_in.makeShared();
+	pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sorfilter(true); // Initializing with true will allow us to extract the removed indices
+	sorfilter.setInputCloud(cloud_out);
+	sorfilter.setMeanK(20);
+	sorfilter.setStddevMulThresh(0.5);
+	sorfilter.filter (*cloud_out);
+	// The resulting cloud_out contains all points of cloud_in that have an average distance to their 8 nearest neighbors that is below the computed threshold
+	// Using a standard deviation multiplier of 1.0 and assuming the average distances are normally distributed there is a 84.1% chance that a point will be an inlier
+	 pcl::IndicesConstPtr indices_rem = sorfilter.getRemovedIndices();
+	// The indices_rem array indexes all points of cloud_in that are outliers
+
+	return (float)indices_rem->size()/cloud_in.points.size();
+}
+
+//reference for plane fitting math: https://math.stackexchange.com/questions/99299/best-fitting-plane-given-a-set-of-points
 void fit_plane(float & _a, float & _b, float & _d,  pcl::PointCloud<pcl::PointXYZI> pcd){
   int pts_len = pcd.points.size();
 
