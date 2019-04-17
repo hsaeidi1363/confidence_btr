@@ -211,3 +211,6 @@ include_directories(
 add_executable(checkerboard_in_kuka src/checkerboard_in_kuka.cpp)
 target_link_libraries(checkerboard_in_kuka ${catkin_LIBRARIES} orocos-kdl)
 
+
+add_executable(identification_pattern src/identification_pattern.cpp)
+target_link_libraries(identification_pattern ${catkin_LIBRARIES} orocos-kdl)

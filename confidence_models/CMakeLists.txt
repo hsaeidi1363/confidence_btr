@@ -213,3 +213,8 @@ add_executable(confidence_models
               src/confidence_models.cpp 
               src/confidence_functions.cpp)
 target_link_libraries(confidence_models ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
+
+add_executable(identification_data src/identification_data.cpp)
+target_link_libraries(identification_data ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+

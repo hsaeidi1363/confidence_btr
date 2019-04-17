@@ -1,0 +1,5 @@
+<launch>
+	<node name="identification_data" pkg="confidence_models" type="identification_data" required="true" output="screen">
+		<param name="test_no" value="p30a0"/>
+	</node>
+</launch>
