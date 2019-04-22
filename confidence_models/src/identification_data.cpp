@@ -49,7 +49,8 @@ int main(int argc, char * argv[]){
 		try {  // get the pos/ori of raytrix wrt basler
 			  
 			  std::ofstream positions_file;
-			  positions_file.open((ros::package::getPath("confidence_models") + "/ident_data/"+test_no+"_basler_vs_intel.csv").c_str());
+			 // positions_file.open((ros::package::getPath("confidence_models") + "/ident_data/"+test_no+"_frames.csv").c_str());
+			  positions_file.open(("/home/hsaeidi/ident_data/"+test_no+"_frames.csv").c_str());
 			  positions_file << "frame1_in_frame2,x,y,z,r,p,y" << std::endl;
 			  
 			  tf::StampedTransform tfRt1;
@@ -136,7 +137,8 @@ int main(int argc, char * argv[]){
 		  
 	}
 	std::ofstream markers3D_file;
-	markers3D_file.open((ros::package::getPath("confidence_models") + "/ident_data/"+test_no+"_markers3D.csv").c_str());
+//	markers3D_file.open((ros::package::getPath("confidence_models") + "/ident_data/"+test_no+"_markers3D.csv").c_str());
+	markers3D_file.open(("/home/hsaeidi/ident_data/"+test_no+"_markers3D.csv").c_str());
 	markers3D_file << "x,y,z" << std::endl;
 	for (int i = 0; i < markers3D.points.size(); i++){
 		markers3D_file<< markers3D.points[i].x<< ","<< markers3D.points[i].y << ","<< markers3D.points[i].z<<std::endl;
@@ -148,7 +150,8 @@ int main(int argc, char * argv[]){
 		  ros::Duration(0.5).sleep(); 
 		  ROS_INFO("waiting for pcl"); 	  
 	}
-	pcl::io::savePCDFileASCII ((ros::package::getPath("confidence_models") + "/ident_data/"+test_no+".pcd").c_str(), pointcloud_in);
+//	pcl::io::savePCDFileASCII ((ros::package::getPath("confidence_models") + "/ident_data/"+test_no+".pcd").c_str(), pointcloud_in);
+	pcl::io::savePCDFileASCII (("/home/hsaeidi/ident_data/"+test_no+".pcd").c_str(), pointcloud_in);
 	std::cerr << "Saved " << pointcloud_in.size () << " data points " << std::endl;
 
 	

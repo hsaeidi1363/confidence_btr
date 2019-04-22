@@ -1,0 +1,6 @@
+<param name="roll" value="-0.961865"/>
+<param name="pitch" value="-0.695013"/>
+<param name="yaw" value="2.810769"/>
+<param name="x" value="0.506528"/>
+<param name="y" value="0.057839"/>
+<param name="z" value="0.198401"/>
