@@ -3,6 +3,7 @@
 #include <tf/transform_listener.h>
 #include<fstream>
 #include <geometry_msgs/Polygon.h>
+#include <geometry_msgs/PolygonStamped.h> // look it up
 #include<sensor_msgs/PointCloud2.h>
 #include <pcl/io/pcd_io.h>
 #include<pcl_ros/point_cloud.h>
@@ -10,23 +11,50 @@
 
 geometry_msgs::Polygon markers3D;
 
+bool path_mode = false;
 bool poly_available = false;
+int raw_markers_len = 0;
+
+
+void get_markers(const geometry_msgs::PolygonStamped & _data){
+	geometry_msgs::PolygonStamped markers2D = _data;
+	raw_markers_len  = markers2D.polygon.points.size();
+	ROS_INFO("got a new reading from 2D MARKERS with %d points",raw_markers_len);
+}
+
 void get_polygon(const geometry_msgs::Polygon & _data){
-	markers3D = _data;	
-	poly_available = true;
+	markers3D = _data;
 	int len = markers3D.points.size();
 	ROS_INFO("got a new reading from 3D polygons with %d points",len);
+	if(path_mode){
+		if (len == raw_markers_len && len > 0){
+			poly_available = true;
+			ROS_INFO("got all the %d selected points",len);
+		}
+	}else{
+		if(len == 36)	
+			poly_available = true;
+	}
 }
 
 bool pcl_available = false;
+bool path_available = false;
 
-pcl::PointCloud<pcl::PointXYZ> pointcloud_in;
+pcl::PointCloud<pcl::PointXYZRGB> pointcloud_in;
+pcl::PointCloud<pcl::PointXYZI> pointcloud_path;
 
 void get_pcl(const sensor_msgs::PointCloud2Ptr& cloud) {
 
   pcl::fromROSMsg(*cloud, pointcloud_in);  // copy sensor_msg::Pointcloud message into pcl::PointCloud
   pcl_available = true;
 }
+
+void get_path(const sensor_msgs::PointCloud2Ptr& cloud) {
+
+  pcl::fromROSMsg(*cloud, pointcloud_path);  // copy sensor_msg::Pointcloud message into pcl::PointCloud
+  path_available = true;
+}
+
 
 int main(int argc, char * argv[]){
 	
@@ -35,14 +63,18 @@ int main(int argc, char * argv[]){
 	ros::NodeHandle nh;
 	ros::NodeHandle home("~");
 	
+
 	std::string test_no = "dbg";
 	home.getParam("test_no", test_no);
+	home.getParam("path_mode", path_mode);
 
 
 
-    tf::TransformListener listener;
+   	tf::TransformListener listener;
 	ros::Subscriber polygon_sub = nh.subscribe("/nir_overlay_intel/polygon3D_cog",1, get_polygon);
+	ros::Subscriber markers2D_sub = nh.subscribe("/markers/cog",1, get_markers);
 	ros::Subscriber sub_pcl = nh.subscribe("/d415/filtered_points", 1, get_pcl);
+	ros::Subscriber path_sub = nh.subscribe("/filtered_tissue_traj", 1, get_path);
 
 	bool basler_intel_read =false;
 	while(!basler_intel_read){
@@ -157,6 +189,18 @@ int main(int argc, char * argv[]){
 	
 	ROS_INFO("!!!!!!!Finished logging pcl!!!!!!!");	
 
+	if(path_mode){
+		while(!path_available){	
+			  ros::spinOnce();
+			  ros::Duration(0.5).sleep(); 
+			  ROS_INFO("waiting for path"); 	  
+		}
+		pcl::io::savePCDFileASCII (("/home/hsaeidi/ident_data/"+test_no+"_path.pcd").c_str(), pointcloud_path);
+		std::cerr << "Saved " << pointcloud_path.size () << " data points " << std::endl;
+
+	
+		ROS_INFO("!!!!!!!Finished logging path!!!!!!!");	
+	}
  
 	ROS_INFO("!!!!!!!Finished logging all data =>>> shtting down!!!!!!!");
 	return 0;

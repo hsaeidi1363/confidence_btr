@@ -251,7 +251,7 @@ geometry_msgs::Vector3 find_unit_vector(geometry_msgs::Point32 & pt_tail, geomet
 
 geometry_msgs::Polygon add_offset(geometry_msgs::Polygon & polygon){
 	int len = markers3D.points.size();
-	float offset_val = 0.005; //offset in METERS
+	float offset_val = 0.005*0; //offset in METERS
 	geometry_msgs::Polygon polygon_offset;
 	for (int i = 0; i < len; i++){
 		int cur_pt = i ;

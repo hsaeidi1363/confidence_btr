@@ -217,7 +217,7 @@ void NIROverlay::Callback( const sensor_msgs::CameraInfo& msginfo,
 		
 	    	  cv::Mat stduvi( stduv[i] );
 		  //rsd - is this value the radius of search in pixels??
-		  if( cv::norm( cvcog[j], stduvi ) < 3 && !found){
+		  if( cv::norm( cvcog[j], stduvi ) < 4 && !found){
 		    cv::Point2f cj( 100000,100000 );
 		    cvcog[j] = cv::Mat(cj);
 		    pcl::PointXYZI xyzi;
@@ -225,21 +225,24 @@ void NIROverlay::Callback( const sensor_msgs::CameraInfo& msginfo,
 		    xyzi.y = stdxyz[i].y;
 		    xyzi.z = stdxyz[i].z;
 		    xyzi.intensity = j;
-		    pclcog.push_back( xyzi );
-		    polygon3D_pt.x = xyzi.x;
-		    polygon3D_pt.y = xyzi.y;
-		    polygon3D_pt.z = xyzi.z;
-		    polygon3D.points.push_back(polygon3D_pt);
+		    if(xyzi.z < 0.6){
+			    pclcog.push_back( xyzi );
+			    polygon3D_pt.x = xyzi.x;
+			    polygon3D_pt.y = xyzi.y;
+			    polygon3D_pt.z = xyzi.z;
+			    polygon3D.points.push_back(polygon3D_pt);
 
-		    //some debugging for the kuka frame coordinates of the COG
-		    tf::Vector3 pos_in_kuka;
-		    pos_in_kuka = tfRt_dbg(tf::Vector3(xyzi.x,xyzi.y,xyzi.z));
-		    geometry_msgs::Point32 kuka_pt;
-		    kuka_pt.x = pos_in_kuka.x();
-		    kuka_pt.y = pos_in_kuka.y();
-		    kuka_pt.z = pos_in_kuka.z();
-		    kuka_polygon.points.push_back(kuka_pt);
-		    found = true;
+			    //some debugging for the kuka frame coordinates of the COG
+			    tf::Vector3 pos_in_kuka;
+			    pos_in_kuka = tfRt_dbg(tf::Vector3(xyzi.x,xyzi.y,xyzi.z));
+			    geometry_msgs::Point32 kuka_pt;
+			    kuka_pt.x = pos_in_kuka.x();
+			    kuka_pt.y = pos_in_kuka.y();
+			    kuka_pt.z = pos_in_kuka.z();
+			    kuka_polygon.points.push_back(kuka_pt);
+			    found = true;
+		    }
+		    ////////
 		  }
 	    }
       }

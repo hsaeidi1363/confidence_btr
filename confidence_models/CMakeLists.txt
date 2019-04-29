@@ -219,6 +219,10 @@ add_executable(identification_data src/identification_data.cpp)
 target_link_libraries(identification_data ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
 
+add_executable(single_pcd_saver src/single_pcd_saver.cpp)
+target_link_libraries(single_pcd_saver ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
+
 add_executable(pattern_positioner src/pattern_positioner.cpp)
 target_link_libraries(pattern_positioner ${catkin_LIBRARIES})
 

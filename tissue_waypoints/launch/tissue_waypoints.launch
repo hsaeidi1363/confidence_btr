@@ -1,10 +1,10 @@
 <launch>
 	<node pkg="tissue_waypoints" type ="tissue_waypoints" name="tissue_waypoints" output = "screen">
-		<param name ="x_min" value ="-0.03"/>
+		<param name ="x_min" value ="-0.018"/>
 		<param name ="x_max" value ="0.02"/>
-		<param name ="y_min" value ="0.017"/>
-		<param name ="y_max" value ="0.052"/>
-		<param name ="z_min" value ="0.33"/>
+		<param name ="y_min" value ="0.00"/>
+		<param name ="y_max" value ="0.027"/>
+		<param name ="z_min" value ="0.30"/>
 		<param name ="z_max" value ="0.43"/>
 	</node>
 </launch>
