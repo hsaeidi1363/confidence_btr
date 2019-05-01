@@ -7,6 +7,7 @@
 #include<sensor_msgs/PointCloud2.h>
 #include <pcl/io/pcd_io.h>
 #include<pcl_ros/point_cloud.h>
+#include <pclPassThrough.h>
 
 
 geometry_msgs::Polygon markers3D;
@@ -183,8 +184,24 @@ int main(int argc, char * argv[]){
 		  ROS_INFO("waiting for pcl"); 	  
 	}
 //	pcl::io::savePCDFileASCII ((ros::package::getPath("confidence_models") + "/ident_data/"+test_no+".pcd").c_str(), pointcloud_in);
-	pcl::io::savePCDFileASCII (("/home/hsaeidi/ident_data/"+test_no+".pcd").c_str(), pointcloud_in);
-	std::cerr << "Saved " << pointcloud_in.size () << " data points " << std::endl;
+
+        pclPassThrough pt;
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_out;
+	cloud_out = pointcloud_in.makeShared();
+	pt.setInputCloud(*cloud_out);
+
+	pt.setFilterXlimit(-0.15 , 0.15 );
+
+	  pt.filterProcess(*cloud_out);
+	  pt.setInputCloud(*cloud_out);
+	  pt.setFilterZlimit(0.27, 0.6);
+	  pt.filterProcess(*cloud_out);
+	  pt.setInputCloud(*cloud_out);
+	  pt.setFilterYlimit(-0.15 , 0.15);
+	  pt.filterProcess(*cloud_out);
+//	pcl::io::savePCDFileASCII (("/home/hsaeidi/ident_data/"+test_no+".pcd").c_str(), pointcloud_in);
+//	std::cerr << "Saved " << pointcloud_in.size () << " data points " << std::endl;
+	pcl::io::savePCDFileASCII (("/home/hsaeidi/ident_data/"+test_no+".pcd").c_str(), *cloud_out);
 
 	
 	ROS_INFO("!!!!!!!Finished logging pcl!!!!!!!");	

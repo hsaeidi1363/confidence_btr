@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
   roslib
   cv_bridge
   geometry_msgs
+  tissue_waypoints
 )
 
 ## System dependencies are found with CMake's conventions
@@ -215,7 +216,7 @@ add_executable(confidence_models
 target_link_libraries(confidence_models ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
 
-add_executable(identification_data src/identification_data.cpp)
+add_executable(identification_data src/identification_data.cpp src/pclPassThrough.cpp )
 target_link_libraries(identification_data ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
 

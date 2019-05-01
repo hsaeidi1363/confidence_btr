@@ -1,6 +1,6 @@
 <launch>
 	<node name="pattern_positioner" pkg="confidence_models" type="pattern_positioner" output ="screen">
-		<param name="roll" value="15"/>
+		<param name="roll" value="0"/>
 		<param name="pitch" value="0"/>
 		<param name="yaw" value="0.0"/>
 		<param name="x" value=" 0.00"/>
