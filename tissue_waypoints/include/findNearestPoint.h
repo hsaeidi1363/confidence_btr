@@ -46,6 +46,8 @@ class findNearestPoint {
   /**@brief shared pointer, which data type is PointNormal  */
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloudPtr;
 
+  bool *tri_point;
+
  public:
   /**constructor */
   findNearestPoint();
@@ -57,7 +59,7 @@ class findNearestPoint {
   /**@brief input a point cloud data and set it to the private cloud
    * @param[in] cloudIn reference of a point cloud
    * @return none */
-  void setInputCloud(pcl::PointCloud<pcl::PointXYZ>& cloudIn);
+  void setInputCloud(pcl::PointCloud<pcl::PointXYZ>& cloudIn, bool *tri_);
   /**@brief this function calculate the nearest point in the given pointNormal.
    * Before using this function, make sure you have setInpuCloud and a specificPoints
    * instance.

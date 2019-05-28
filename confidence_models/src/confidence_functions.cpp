@@ -97,10 +97,11 @@ float calc_density(geometry_msgs::Vector3 x1, geometry_msgs::Vector3 x2, pcl::Po
  		ctr ++;
 	}
 
- // double h = vec_len(x1, x2);
- // double cyl_volume = M_PI*r_c*r_c*h;//volume of the cylinder formed by x1-x2 line and radius r_c
+  	 double h = vec_len(x1, x2);
+ 	 double cyl_volume = M_PI*r_c*r_c*h*1000000;//volume of the cylinder formed by x1-x2 line and radius r_c
  // cout << "volume was: " << cyl_volume<< " for h= "<< h << endl; 
-	return density/pcd.points.size();
+	//return density/pcd.points.size();
+	return density/cyl_volume;
 }
 
 // estimate the noise level on the points inside a cylinder between points x1 and x2

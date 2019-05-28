@@ -4,7 +4,7 @@
 		<param name ="x_max" value ="0.034"/>
 		<param name ="y_min" value ="-0.034"/>
 		<param name ="y_max" value ="0.034"/>
-		<param name ="z_min" value ="0.30"/>
+		<param name ="z_min" value ="0.27"/>
 		<param name ="z_max" value ="0.43"/>
 	</node>
 </launch>

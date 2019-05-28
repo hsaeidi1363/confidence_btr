@@ -187,7 +187,7 @@ int main(int argc, char **argv){
 	      			filter_waypoints(short_output_traj,filtered_output_traj);
 			}
 			filtered_output_traj_old = filtered_output_traj;
-			ROS_INFO("Filtered one loop of traj");
+			ROS_INFO("----------Filtered loop %d of traj",seq2);
 			std_msgs::Header header;
 			header.stamp = ros::Time::now();
 			header.frame_id = std::string("camera_color_optical_frame");
@@ -210,7 +210,7 @@ float dist_3d(pcl::PointXYZI & pt1, pcl::PointXYZI & pt2){
 
 void detect_key_points(pcl::PointCloud<pcl::PointXYZI> &in_list, pcl::PointCloud<pcl::PointXYZI> & out_traj){
 	float traj_length = 0.0;
-	int mid_points = 3;
+	int mid_points = 5;
 	std::vector<float> points_loc;// the location of point on the path based on the traveled distance between the start and end point
 	points_loc.push_back(0.0); //distance of the start point on the path is zero
 	for (int i = 1; i < in_list.points.size(); i++){

@@ -1,6 +1,7 @@
 #include"confidence_functions.h"
 #include<geometry_msgs/Vector3.h>
 #include <geometry_msgs/Polygon.h>
+#include <geometry_msgs/Twist.h>
 #include<ros/ros.h>
 #include<sensor_msgs/PointCloud2.h>
 #include<pcl_ros/transforms.h>
@@ -38,6 +39,7 @@ int main(int argc, char **argv){
   ros::Subscriber polygon_sub = nh_.subscribe("/nir_overlay_intel/polygon3D_cog",1, get_polygon);
 
   ros::Publisher pub_pcl= nh_.advertise<sensor_msgs::PointCloud2>( "/planefit_dbg", 10 );
+  ros::Publisher dbg_pcl= nh_.advertise<geometry_msgs::Twist>( "/density_dbg", 10 );
 
   geometry_msgs::Vector3 x0;
   geometry_msgs::Vector3 x1;
@@ -92,8 +94,8 @@ int main(int argc, char **argv){
 
 				float density = calc_density(x1, x2, cropped_pcl);
 				float noise = calc_noise(x1, x2, cropped_pcl);
-				std::cout<<"density between points "<< start_pt<< " and " << end_pt<< " is: "<< density<<std::endl;
-				std::cout<<"noise between points "<< start_pt<< " and " << end_pt<< " is: "<< noise<<std::endl;
+				std::cout<<"between points "<< start_pt<< " and " << end_pt<< " density is: "<< density << " and noise is: "<<noise<<std::endl;
+//				std::cout<<"noise between points "<< start_pt<< " and " << end_pt<< " is: "<< noise<<std::endl;
 
 			}
 

@@ -30,7 +30,8 @@
 #include <vector>
 #include <utility>
 #include <list>
-
+#include <pcl/io/vtk_io.h>
+#include <pcl/visualization/cloud_viewer.h>
 
 typedef std::pair<int, double> iPair;
 
@@ -101,7 +102,7 @@ class dijkstraPQ {
    * @param[out] pathNode is a container that stores a sets of node index
    * @return none */
   void returnDijkstraPath(int startNode, int endNode,
-                          std::vector<int>& pathNode);
+                          std::vector<int>& pathNode, pcl::PolygonMesh triangles);
   /**@brief input a point cloud data and set it to the private cloud
    * @param[in] cloudIn reference of a point cloud
    * @return none */

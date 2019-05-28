@@ -65,6 +65,11 @@
 #include <limits>
 #include <algorithm>
 #include <std_msgs/Float32.h>
+#include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/features/normal_3d.h>
+#include <pcl/surface/gp3.h>
+#include <pcl/io/vtk_io.h>
+
 
 typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
 
@@ -159,7 +164,7 @@ bool find(tissue_waypoints::Trajectory::Request &req,
   //ROS_INFO(" GOT THIS MAX AND MIN VALUES");
   //ROS_INFO("%f ---- %f----%f",short_x_min,short_y_min,short_z_min);
   //ROS_INFO("%f ---- %f----%f",short_x_max,short_y_max,short_z_max);
-  float short_offset = 0.003;
+  float short_offset = 0.01;
   short_x_min -= short_offset;
   short_y_min -= short_offset;
   short_z_min -= short_offset;
@@ -247,50 +252,122 @@ bool find(tissue_waypoints::Trajectory::Request &req,
   // pclView.display(triangles);
 
   // 9.mergeHanhsPoint
-  ROS_INFO(" 9. Merging point of selected point, please wait...");
-  findNearestPoint mg;
-  std::vector<int> selectedPoint;
-
-  // mg.readtext("./src/Robotic-polishing/kidney3dots3_pointCluster.txt");
-  mg.setPosition(req.start);
-  mg.setPosition(req.end);
-
-  mg.setInputCloud(*cloud_out);
-  mg.findNearestProcess(selectedPoint);
-  std::vector<int> size3;
- // size3 = ft.getSegID();
-  ROS_INFO(" 10. Delaunay3 function...");
+   std::vector<int> size3;
   std::vector<Triad> triads;
-  // std::vector<Shx> ptsOut;
+  std::vector<int> selectedPoint_start;
+  std::vector<int> selectedPoint_end;
+
+  if(0)
+  {
   delaunay3 dy3;
   dy3.setInputCloud(*cloud_out);
-
-
   ROS_INFO(" 10.b.1");
   dy3.putPointCloudIntoShx();
   ROS_INFO(" 10.b.2");
   dy3.processDelaunay(triads);
   ROS_INFO(" 10.b.3");
- 
-  // dy3.getShx(ptsOut);
-  // write_Triads(triads, "triangles.txt");
-  // write_Shx(ptsOut, "pts.txt");
-  //std::cout<<selectedPoint[0]<<"  "<< selectedPoint[1]<<std::endl;
+}
+  else
+  {
+  ROS_INFO(" 10.c.1");
+  pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> n;
+  pcl::PointCloud<pcl::Normal>::Ptr normals (new pcl::PointCloud<pcl::Normal>);
+  pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
+  tree->setInputCloud (cloud_out);
+  n.setInputCloud (cloud_out);
+  n.setSearchMethod (tree);
+  n.setKSearch (20);
+  n.compute (*normals);
+  //* normals should not contain the point normals + surface curvatures
+  ROS_INFO(" 10.c.2");
+  // Concatenate the XYZ and normal fields*
+  pcl::PointCloud<pcl::PointNormal>::Ptr cloud_with_normals (new pcl::PointCloud<pcl::PointNormal>);
+  pcl::concatenateFields (*cloud_out, *normals, *cloud_with_normals);
+  //* cloud_with_normals = cloud + normals
+  ROS_INFO(" 10.c.3");
+  // Create search tree*
+  pcl::search::KdTree<pcl::PointNormal>::Ptr tree2 (new pcl::search::KdTree<pcl::PointNormal>);
+  tree2->setInputCloud (cloud_with_normals);
+  ROS_INFO(" 10.c.4");
+  // Initialize objects
+  pcl::GreedyProjectionTriangulation<pcl::PointNormal> gp3;
+  //pcl::PolygonMesh triangles;
+  ROS_INFO(" 10.c.5");
+  // Set the maximum distance between connected points (maximum edge length)
+  gp3.setSearchRadius (0.025);
+
+  // Set typical values for the parameters
+  gp3.setMu (2.5);
+  gp3.setMaximumNearestNeighbors (100);
+  gp3.setMaximumSurfaceAngle(M_PI/2); // 90 degrees
+  gp3.setMinimumAngle(M_PI/18); // 10 degrees
+  gp3.setMaximumAngle(2*M_PI/3); // 120 degrees
+  gp3.setNormalConsistency(false);
+  ROS_INFO(" 10.c.6");
+  // Get result
+  gp3.setInputCloud (cloud_with_normals);
+  gp3.setSearchMethod (tree2);
+  gp3.reconstruct (triangles);
+
+  ROS_INFO(" 10.c.7");
+  std::cout << triangles.polygons.size() << std::endl;
+
+  //**********************************************************
+  bool *points_tri = new bool[cloud_out->points.size()];
+
+  for(int ii=0;ii<cloud_out->points.size();ii++)
+  {
+    points_tri[ii] = false;
+  }
+  //**********************************************************
+  for(int m=0;m < triangles.polygons.size();m++)
+  {  Triad temp_tri;
+     temp_tri.a = triangles.polygons[m].vertices[0];
+     temp_tri.b = triangles.polygons[m].vertices[1];
+     temp_tri.c = triangles.polygons[m].vertices[2];
+     points_tri[temp_tri.a]=true;
+     points_tri[temp_tri.b]=true;
+     points_tri[temp_tri.c]=true;
+     triads.push_back(temp_tri);
+
+  }
+  ROS_INFO(" 9. Merging point of selected point, please wait...");
+  findNearestPoint mg_start, mg_end;
+
+
+  mg_start.setPosition(req.start);
+  mg_start.setInputCloud(*cloud_out, points_tri);
+  mg_start.findNearestProcess(selectedPoint_start);
+
+  mg_end.setPosition(req.end);
+  mg_end.setInputCloud(*cloud_out, points_tri);
+  mg_end.findNearestProcess(selectedPoint_end);
+
+  delete points_tri;
+}
+
   std::cout<<triads.size()<<std::endl;
-  int start = selectedPoint[0];
-  int end = selectedPoint[1];
+  int start = selectedPoint_start[0];
+  int end = selectedPoint_end[0];
+  ROS_INFO(" 10.c.9");
   std::vector<int> path;
   dijkstraPQ dPQ(triads.size());
+  ROS_INFO(" 10.c.10");
   dPQ.setInputCloud(*cloud_out);
+  ROS_INFO(" 10.c.11");
   dPQ.setTri(triads);
+  ROS_INFO(" 10.c.12");
   dPQ.computeWeight();
+  ROS_INFO(" 10.c.13");
   dPQ.shortestPath(start, end);
-  dPQ.returnDijkstraPath(start, end, path);
+  ROS_INFO(" 10.c.14");
+  dPQ.returnDijkstraPath(start, end, path, triangles);
+  ROS_INFO(" 10.c.15");
 
- 
   //  std::cout << std::endl;
   std::vector<position> POS;
   dPQ.returnDijkstraPathPosition(start, end, POS);
+  ROS_INFO(" 10.c.16");
   std::vector<position>::iterator routePos = POS.begin();
 
   float px, py, pz;

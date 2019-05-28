@@ -59,8 +59,9 @@ void findNearestPoint::setPosition(const std::vector<float>& pos) {
 }
 
 void findNearestPoint::setInputCloud(
-    pcl::PointCloud<pcl::PointXYZ>& cloudIn) {
+    pcl::PointCloud<pcl::PointXYZ>& cloudIn, bool *tri_) {
   cloud = cloudIn;
+  tri_point = tri_;
 }
 
 void findNearestPoint::findNearestProcess(std::vector<int>& nearIndices) {
@@ -88,7 +89,7 @@ void findNearestPoint::findNearestProcess(std::vector<int>& nearIndices) {
     searchPoints.push_back(searchPoint);
   }
   // Number of K point you want to search
-  int K = 1;
+  int K = 20;
   // Vector to store point index
   std::vector<int> pointIdxNKNSearch(K);
   // Vector to store distance between given point and Kth near point
@@ -98,8 +99,17 @@ void findNearestPoint::findNearestProcess(std::vector<int>& nearIndices) {
   for (pcl::PointCloud<pcl::PointXYZ>::const_iterator iter = searchPoints
       .begin(); iter != searchPoints.end(); iter++) {
     kdtree.nearestKSearch(*iter, K, pointIdxNKNSearch, pointNKNSquaredDistance);
-    nearIndices.insert(nearIndices.end(), pointIdxNKNSearch.begin(),
-                       pointIdxNKNSearch.end());
+    // 2019/4/26 Michael
+    for(int nn=0;nn<pointIdxNKNSearch.size();nn++)
+    {
+      if(tri_point[pointIdxNKNSearch[nn]])
+      {
+        nearIndices.push_back(pointIdxNKNSearch[nn]);
+      }
+    }
+    //nearIndices.insert(nearIndices.end(), pointIdxNKNSearch.begin(),pointIdxNKNSearch.end());
   }
-}
+  if(nearIndices.size()==0)
+  std::cout << "nearIndices.size()= " << nearIndices.size() << std::endl;
 
+}

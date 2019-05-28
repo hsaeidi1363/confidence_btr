@@ -28,12 +28,18 @@
 #include <list>
 #include <vector>
 #include <functional>
+#include <ros/ros.h>
+
 # define INF 0x3f3f3f3f
 
 dijkstraPQ::dijkstraPQ(int size3) {
   this->V = size3;
   adj = new std::list<iPair>[size3];
   this->parent = new int[size3];
+  for(int ii=0;ii<size3;ii++)
+  {
+    this->parent[ii]=(-1);
+  }
 }
 
 void dijkstraPQ::addEdge(int u, int v, double w) {
@@ -47,7 +53,7 @@ void dijkstraPQ::shortestPath(int startNode, int endPoint) {
 
   // Create a vector for distances and initialize all
   // distances as infinite (INF)
-  std::vector<double> dist(V, INF);
+  std::vector<double> dist(this->V, INF);
 
   // Insert source itself in priority queue and initialize
   // its distance as 0.
@@ -86,6 +92,9 @@ void dijkstraPQ::shortestPath(int startNode, int endPoint) {
   // Print shortest distances stored in dist[]
   // std::cout << "Vertex Distance from Source to EndPoint: " <<
   // dist[endPoint] << std::endl;
+
+
+  //std::cout << "this->parent size(): " <<  this->parent->size() << std::endl;
 }
 
 double dijkstraPQ::cal2Point(int point1, int point2) {
@@ -133,16 +142,45 @@ void dijkstraPQ::setTri(std::vector<Triad>& triadsIn) {
 }
 // Make sure you have finish the Dijkstra before you run this method to get the ID
 void dijkstraPQ::returnDijkstraPath(int startPoint, int endPoint,
-                                    std::vector<int>& pathNode) {
-
+                                    std::vector<int>& pathNode, pcl::PolygonMesh triangles) {
+try{
   int tempPoint;
+  //std::cout << " endpoint: " << endPoint << std::endl;
   pathNode.push_back(endPoint);
   tempPoint = endPoint;
-  while (tempPoint != startPoint) {
+  //std::cout << " startPoint: " << startPoint << std::endl;
+  while (tempPoint != startPoint | tempPoint==-1) {
+    //std::cout << " ==== "  << std::endl;
+    //std::cout << " tempPoint: " << tempPoint << std::endl;
     tempPoint = this->parent[tempPoint];
+    //std::cout << " ---- "  << std::endl;
+    //std::cout << " tempPoint: " << tempPoint << std::endl;
+/*    if(tempPoint==-1)
+    {
+      ROS_INFO("GG.......");
+    }
+*/
     pathNode.push_back(tempPoint);
   }
   std::reverse(pathNode.begin(), pathNode.end());
+} catch(...)
+{
+/*
+  std::cout << " pathNode.size(): " << pathNode.size() << std::endl;
+  boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
+  viewer->setBackgroundColor (0, 0, 0);
+  viewer->addPolygonMesh(triangles,"meshes",0);
+  viewer->addCoordinateSystem (0.05);
+  viewer->initCameraParameters ();
+  while (!viewer->wasStopped ()){
+    viewer->spinOnce (100);
+    boost::this_thread::sleep (boost::posix_time::microseconds (100000));}
+*/
+    //pcl::io::saveVTKFile("mesh.vtk",triangles);
+}
+
+
+
 }
 
 void dijkstraPQ::setInputCloud(pcl::PointCloud<pcl::PointXYZ>& cloudIn) {
@@ -154,7 +192,10 @@ void dijkstraPQ::returnDijkstraPathPosition(int startNode, int endNode,
   int tempPoint;
   position temPos;
   tempPoint = endNode;
+
+try{
   while (tempPoint != startNode) {
+
     temPos.x = this->cloudPtr->points[tempPoint].x;
     temPos.y = this->cloudPtr->points[tempPoint].y;
     temPos.z = this->cloudPtr->points[tempPoint].z;
@@ -162,5 +203,9 @@ void dijkstraPQ::returnDijkstraPathPosition(int startNode, int endNode,
     tempPoint = this->parent[tempPoint];
   }
   std::reverse(pathPos.begin(), pathPos.end());
+} catch(...)
+{
+   //std::cout << pathPos.size() << std::endl;
 }
 
+}

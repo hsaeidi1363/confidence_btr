@@ -1,6 +1,6 @@
 <launch>
 	<node name="identification_data" pkg="confidence_models" type="identification_data" required="true" output="screen">
 		<param name="path_mode" value="true"/>		
-		<param name="test_no" value="p39r0p35"/>
+		<param name="test_no" value="p39r0p35n1"/>
 	</node>
 </launch>
