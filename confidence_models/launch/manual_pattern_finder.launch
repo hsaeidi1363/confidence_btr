@@ -1,0 +1,18 @@
+
+<launch>
+	<include file = "$(find pointgrey_camera_driver)/launch/camera.launch">
+		<arg name="calibrated" value ="1"/>
+		<arg name="camera_serial" value= "flea"/>
+	</include>
+    <node pkg ="cameras_pose_estimation" type="checkerboard_flea.sh" name="flea_checkerboard"/>
+	<node pkg ="rqt_reconfigure" type="rqt_reconfigure" name="intel_configure"/>
+	<node name = "gui" pkg ="rqt_gui" type ="rqt_gui"/>
+    <node name="manual_pattern_finder" pkg="confidence_models" type="find_manual_pattern" output ="screen">
+		<param name="roll" value="0"/>
+		<param name="pitch" value="0"/>
+		<param name="yaw" value="0.0"/>
+		<param name="x" value=" 0.00"/>
+		<param name="y" value="0.000"/>
+		<param name="z" value="0.35"/>
+	</node>
+</launch>

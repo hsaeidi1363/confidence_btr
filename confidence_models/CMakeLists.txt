@@ -18,7 +18,12 @@ find_package(catkin REQUIRED COMPONENTS
   cv_bridge
   geometry_msgs
   tissue_waypoints
+  image_transport
+  tf
+  tf_conversions
 )
+
+find_package(OpenCV REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -227,3 +232,8 @@ target_link_libraries(single_pcd_saver ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 add_executable(pattern_positioner src/pattern_positioner.cpp)
 target_link_libraries(pattern_positioner ${catkin_LIBRARIES})
 
+add_executable(identification_manual src/identification_manual.cpp)
+target_link_libraries(identification_manual ${catkin_LIBRARIES}  ${OpenCV_LIBS})
+
+add_executable(find_manual_pattern src/find_manual_pattern.cpp)
+target_link_libraries(find_manual_pattern ${catkin_LIBRARIES})
