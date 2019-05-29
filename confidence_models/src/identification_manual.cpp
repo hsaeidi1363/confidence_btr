@@ -22,9 +22,14 @@ using namespace cv_bridge;
 
 
 bool freeze_path = false;
+bool go_to_next = false;
 
 void get_freeze(const std_msgs::Bool & _data){
 	freeze_path = _data.data;	
+}
+
+void get_next(const std_msgs::Bool & _data){
+	go_to_next = _data.data;	
 }
 
 
@@ -109,6 +114,7 @@ int main(int argc, char * argv[]){
 	ros::Subscriber cam_sub = nh_.subscribe("/flea/camera/image_color",1,get_img);
 	ros::Subscriber caminfo_sub = nh_.subscribe("flea/camera/camera_info",1,get_caminfo);
 	ros::Subscriber freeze_path_sub = nh_.subscribe("/freeze_path",1,get_freeze);	
+	ros::Subscriber go_to_next_sub = nh_.subscribe("/go_to_next",1,get_next);	
 	
 	//publisher for checking the images and debugging them
 	ros::Publisher overlay_pub = nh_.advertise<sensor_msgs::Image>("niroverlay_2D",1);
@@ -129,15 +135,18 @@ int main(int argc, char * argv[]){
 
 	std::vector< tf::Vector3 > pattern_pts;
 
-	pattern_pts.push_back(tf::Vector3( 0.0, 0.0, 0.0));
-	pattern_pts.push_back(tf::Vector3(0.0, 0.0476, 0.0));
 	pattern_pts.push_back(tf::Vector3(0.031734, 0.0476, 0.0));
 	pattern_pts.push_back(tf::Vector3(0.031734, 0.0, 0.0));
+	pattern_pts.push_back(tf::Vector3(0.0, 0.0476, 0.0));
+	pattern_pts.push_back(tf::Vector3( 0.0, 0.0, 0.0));
+	int order[13] = {0, 1, 2, 3, 0, 2, 1, 3, 2, 0, 3, 1, 0};
+
+
     	//stdxyz.push_back( cv::Point3f ( 0.0, 0.0, 0.0) );
     	//stdxyz.push_back( cv::Point3f ( 0.0, 0.042312, 0.0) );
     	//stdxyz.push_back( cv::Point3f ( 0.031734, 0.042312, 0.0) );
     	//stdxyz.push_back( cv::Point3f ( 0.031734, 0.0, 0.0) );
-
+	int ctr = 0;
 	while(ros::ok()){
 		if (initialized && caminfo_received ){ 
     		  std::vector< cv::Point2f > stduv;
@@ -147,43 +156,56 @@ int main(int argc, char * argv[]){
 			tf::StampedTransform tfRt;
       			listener.lookupTransform( "flea", "pattern", ros::Time(0), tfRt );
 
+			if (go_to_next){
+				ctr ++;
+				go_to_next = false;
+				ROS_INFO("Switched to path #: %d", ctr);
+			}
 			stdxyz.clear();
+			tf::Vector3 tmp;
+
+			tmp = tfRt(pattern_pts[order[ctr - 1]]);
+			stdxyz.push_back( cv::Point3f (tmp[0], tmp[1], tmp[2]));
+
+			tmp = tfRt(pattern_pts[order[ctr]]);
+			stdxyz.push_back( cv::Point3f (tmp[0], tmp[1], tmp[2]));
+
+			
+/*
  			for (int i = 0; i < pattern_pts.size(); i++){
 				tf::Vector3 tmp;
 				tmp = tfRt(pattern_pts[i]);
 				stdxyz.push_back( cv::Point3f (tmp[0], tmp[1], tmp[2]));
 			}
-			
+*/			
       			Eigen::Affine3d eigRt;
     			tf::transformTFToEigen( tfRt, eigRt );
 
-     			//commented out since there is no second camera
-//     			 cvt_intel.at<double>( 0, 0 ) = tfRt.getOrigin()[0];
- //    			 cvt_intel.at<double>( 1, 0 ) = tfRt.getOrigin()[1];
- //    			 cvt_intel.at<double>( 2, 0 ) = tfRt.getOrigin()[2];
- //    			 std::cout << tfRt.getOrigin()[0]<< " "<< tfRt.getOrigin()[1] << " "<< tfRt.getOrigin()[2]<<std::endl;
-
-
-     			// tf::Matrix3x3 tfR( tfRt.getRotation() );
-
-     			//for( int r=0; r<3; r++ ) {
-     			//   for( int c=0; c<3; c++ ) {
-			//          cvR_intel.at<double>( r, c ) = tfR[r][c];
-        		//    }
-      			//}
+ 
 			cv::projectPoints(stdxyz , cvR_intel, cvt_intel, K_intel, D_intel, stduv );
 			stduv_old.clear();
 			stduv_old = stduv;
 		  }
-		  for (int i = 0; i < stduv.size(); i++){		  
-			if (show_markers)		
-				circle(img, Point(stduv[i].x, stduv[i].y), 3, Scalar(0,255,0), 2, LINE_AA);
+		  if (stduv.size() == 2){
+			if (show_markers){		
+					circle(img, Point(stduv[0].x, stduv[0].y), 3, Scalar(0,255,0), 2, LINE_AA);
+					circle(img, Point(stduv[1].x, stduv[1].y), 3, Scalar(0,0,255), 2, LINE_AA);
+			}
+
+		  }else{
+			  for (int i = 0; i < stduv.size(); i++){		  
+				if (show_markers)		
+					circle(img, Point(stduv[i].x, stduv[i].y), 3, Scalar(0,255,0), 2, LINE_AA);
+			  }
 		  }
 	   	  Mat img_crop = img(roi);
 		  cv_ptr->image = img_crop;
         	  overlay_pub.publish(cv_ptr->toImageMsg());
 		}
-		
+		if (ctr > 12){
+			ROS_INFO("Finished all the paths");
+			break;
+		}
 		ros::spinOnce();
 		loop_rate.sleep();
 	}
