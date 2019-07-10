@@ -1,2 +1,2 @@
 #!/bin/bash
-rosrun tf static_transform_publisher 0.0126479, 0.0145887, 0.379261 0.728468, 0.632828, -0.185102, 0.186012 "flea" "pattern" 10
+rosrun tf static_transform_publisher 0.00534897, -0.00673587, 0.429056 0.690274, 0.669402, -0.194749, 0.193637 "flea" "pattern" 10

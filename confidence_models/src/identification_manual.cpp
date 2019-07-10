@@ -15,6 +15,9 @@
 #include <sensor_msgs/Image.h>
 #include<std_msgs/Bool.h>
 
+#include <string>
+
+
 
 using namespace cv;
 using namespace std;
@@ -90,7 +93,12 @@ void get_caminfo(const sensor_msgs::CameraInfo& msgintelinfo){
 }
 
 
+geometry_msgs::Twist rob_pos;
 
+void get_robot_pos(const geometry_msgs::Twist & _data){
+
+	rob_pos = _data;	
+}
 
 int main(int argc, char * argv[]){
 	ros::init(argc,argv,"identification_manual");
@@ -102,6 +110,9 @@ int main(int argc, char * argv[]){
 	home.getParam("roi_r", roi_r);
 	home.getParam("roi_u", roi_u);
 	home.getParam("roi_b", roi_b);
+
+	std::string test_no = "dbg";
+	home.getParam("test_no", test_no);
 
 	bool show_markers = false;
 	home.getParam("show_markers", show_markers);
@@ -115,6 +126,8 @@ int main(int argc, char * argv[]){
 	ros::Subscriber caminfo_sub = nh_.subscribe("flea/camera/camera_info",1,get_caminfo);
 	ros::Subscriber freeze_path_sub = nh_.subscribe("/freeze_path",1,get_freeze);	
 	ros::Subscriber go_to_next_sub = nh_.subscribe("/go_to_next",1,get_next);	
+
+	ros::Subscriber rob_pos_sub = nh_.subscribe("/robot/worldpos",1,get_robot_pos);	
 	
 	//publisher for checking the images and debugging them
 	ros::Publisher overlay_pub = nh_.advertise<sensor_msgs::Image>("niroverlay_2D",1);
@@ -147,6 +160,11 @@ int main(int argc, char * argv[]){
     	//stdxyz.push_back( cv::Point3f ( 0.031734, 0.042312, 0.0) );
     	//stdxyz.push_back( cv::Point3f ( 0.031734, 0.0, 0.0) );
 	int ctr = 0;
+	std::ofstream positions_file;
+	positions_file.open(("/home/hsaeidi/ident_data/"+test_no+"_positions.csv").c_str());
+	// should I add haptic device inputs as well?! -----or the commands coming to the robot --------
+	positions_file << "p1_x,p1_y,p1_z,p2_x,p2_y,p2_z,x,y,z,r,p,y" << std::endl;
+
 	while(ros::ok()){
 		if (initialized && caminfo_received ){ 
     		  std::vector< cv::Point2f > stduv;
@@ -162,14 +180,24 @@ int main(int argc, char * argv[]){
 				ROS_INFO("Switched to path #: %d", ctr);
 			}
 			stdxyz.clear();
-			tf::Vector3 tmp;
+			tf::Vector3 start_pt;
+			tf::Vector3 end_pt;
 
-			tmp = tfRt(pattern_pts[order[ctr - 1]]);
-			stdxyz.push_back( cv::Point3f (tmp[0], tmp[1], tmp[2]));
+			start_pt = tfRt(pattern_pts[order[ctr - 1]]);
+			stdxyz.push_back( cv::Point3f (start_pt[0], start_pt[1], start_pt[2]));
 
-			tmp = tfRt(pattern_pts[order[ctr]]);
-			stdxyz.push_back( cv::Point3f (tmp[0], tmp[1], tmp[2]));
+			end_pt = tfRt(pattern_pts[order[ctr]]);
+			stdxyz.push_back( cv::Point3f (end_pt[0], end_pt[1], end_pt[2]));
 
+			if(ctr > 0){
+
+				tf::StampedTransform flea_in_kuka;
+				listener.lookupTransform("kuka", "flea", ros::Time(0), flea_in_kuka);
+
+				start_pt = flea_in_kuka(start_pt);		
+				end_pt = flea_in_kuka(end_pt);
+				positions_file << start_pt[0]<<","<< start_pt[1]<<","<< start_pt[2]<<","<< end_pt[0]<<","<< end_pt[1]<<","<< end_pt[2]<<","<<rob_pos.linear.x <<","<<rob_pos.linear.y <<","<<rob_pos.linear.z <<","<<rob_pos.angular.x<<","<<rob_pos.angular.y<<","<<rob_pos.angular.z<<endl ;
+			}
 			
 /*
  			for (int i = 0; i < pattern_pts.size(); i++){
@@ -201,6 +229,7 @@ int main(int argc, char * argv[]){
 	   	  Mat img_crop = img(roi);
 		  cv_ptr->image = img_crop;
         	  overlay_pub.publish(cv_ptr->toImageMsg());
+
 		}
 		if (ctr > 12){
 			ROS_INFO("Finished all the paths");
@@ -209,6 +238,8 @@ int main(int argc, char * argv[]){
 		ros::spinOnce();
 		loop_rate.sleep();
 	}
+
+	positions_file.close();
 	return 0;
 	
 }

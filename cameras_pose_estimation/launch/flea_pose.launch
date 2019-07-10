@@ -1,7 +1,7 @@
 <launch>
 	<include file = "$(find pointgrey_camera_driver)/launch/camera.launch">
 		<arg name="calibrated" value ="1"/>
-		<arg name="camera_serial" value= "arjun"/>
+		<arg name="camera_serial" value= "flea"/>
 	</include>
    <node pkg ="cameras_pose_estimation" type="checkerboard_flea.sh" name="flea_checkerboard"/>
 	<node pkg ="rqt_reconfigure" type="rqt_reconfigure" name="intel_configure"/>
