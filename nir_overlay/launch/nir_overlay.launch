@@ -5,9 +5,9 @@
 	<include file = "$(find cameras_pose_estimation)/launch/kuka_frame.launch"/>
 	<node pkg="nir_overlay" type="nir_overlay_intel" name="nir_overlay_intel"/>	
 	<group ns="flea">	
-		<!--include file = "$(find pointgrey_camera_driver)/launch/camera.launch">
+		<include file = "$(find pointgrey_camera_driver)/launch/camera.launch">
 			<arg name="calibrated" value ="1"/>
-			<arg name="camera_serial" value= "arjun"/>
-		</include-->
+			<arg name="camera_serial" value= "flea"/>
+		</include>
 	</group>
 </launch>
