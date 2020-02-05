@@ -237,3 +237,7 @@ target_link_libraries(identification_manual ${catkin_LIBRARIES}  ${OpenCV_LIBS})
 
 add_executable(find_manual_pattern src/find_manual_pattern.cpp)
 target_link_libraries(find_manual_pattern ${catkin_LIBRARIES})
+
+
+add_executable(alpha_function src/alpha_function.cpp)
+target_link_libraries(alpha_function ${catkin_LIBRARIES})

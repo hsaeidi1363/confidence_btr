@@ -360,7 +360,7 @@ int main(int argc, char * argv[]){
 	ros::Publisher force_pub =nh_.advertise<omni_msgs::OmniFeedback>("/phantom/force_feedback",10);
         
         // defining the puilsher that accepts joint position commands and applies them to the simulator or real robot
-	std::string command_topic = "iiwa/PositionJointInterface_trajectory_controller/command";
+	std::string command_topic = "/iiwa/manual/command";
 
 
 	ros::Publisher cmd_pub = nh_.advertise<trajectory_msgs::JointTrajectory>(command_topic,10);
