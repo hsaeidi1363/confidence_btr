@@ -11,6 +11,7 @@
 using namespace std;
 
 pcl::PointCloud<pcl::PointXYZI> cropped_pcl;
+pcl::PointCloud<pcl::PointXYZI> path_pcl;
 
 
 void get_cropped_pcl(const sensor_msgs::PointCloud2Ptr & cloud){
@@ -19,6 +20,11 @@ void get_cropped_pcl(const sensor_msgs::PointCloud2Ptr & cloud){
 
 
 }
+void get_path(const sensor_msgs::PointCloud2Ptr& cloud){
+    pcl::fromROSMsg(*cloud, path_pcl);
+    ROS_INFO("got a filtered path");
+}
+
 
 
 
@@ -36,9 +42,11 @@ int main(int argc, char **argv){
 
 
   ros::Subscriber cropped_pcl_sub = nh_.subscribe("/d415/passthrough", 1, get_cropped_pcl);
+  ros::Subscriber path_sub = nh_.subscribe("/filtered_tissue_traj",1,get_path);
   ros::Subscriber polygon_sub = nh_.subscribe("/nir_overlay_intel/polygon3D_cog",1, get_polygon);
 
   ros::Publisher pub_pcl= nh_.advertise<sensor_msgs::PointCloud2>( "/planefit_dbg", 10 );
+  ros::Publisher pub_path_confidence= nh_.advertise<sensor_msgs::PointCloud2>( "/path_confidence", 10 );
   ros::Publisher dbg_pcl= nh_.advertise<geometry_msgs::Twist>( "/density_dbg", 10 );
 
   geometry_msgs::Vector3 x0;
@@ -76,7 +84,7 @@ int main(int argc, char **argv){
   int seq = 1;
   while(ros::ok()){
 
-		int pts_len = markers3D.points.size();
+/*		int pts_len = markers3D.points.size();
 		if(pts_len == 0 || pts_len == 1){
 			ROS_INFO("waiting for the pcl points (min = 2) to be received");
 		}else{
@@ -100,7 +108,42 @@ int main(int argc, char **argv){
 			}
 
 		}
-		//plane parameters
+*/
+		pcl::PointCloud<pcl::PointXYZI> confidence_path_pcl;
+		int pts_len = path_pcl.points.size();
+		if(pts_len == 0 || pts_len == 1){
+			ROS_INFO("waiting for the pcl points (min = 2) to be received");
+		}else{
+			for (int pts_id =0; pts_id < pts_len; pts_id++){
+				int start_pt = pts_id % pts_len;
+				int end_pt = (pts_id +1 )% pts_len;
+
+				x1.x = path_pcl.points[start_pt].x;
+				x1.y = path_pcl.points[start_pt].y;
+				x1.z = path_pcl.points[start_pt].z;
+
+				x2.x = path_pcl.points[end_pt].x;
+				x2.y = path_pcl.points[end_pt].y;
+				x2.z = path_pcl.points[end_pt].z;
+
+				float density = calc_density(x1, x2, cropped_pcl);
+				float noise = calc_noise(x1, x2, cropped_pcl);
+				std::cout<<"between points "<< start_pt<< " and " << end_pt<< " density is: "<< density << " and noise is: "<<noise<<std::endl;
+//				std::cout<<"noise between points "<< start_pt<< " and " << end_pt<< " is: "<< noise<<std::endl;
+				pcl::PointXYZI path_pt;
+				path_pt.x = path_pcl.points[start_pt].x;
+				path_pt.y = path_pcl.points[start_pt].y;
+				path_pt.z = path_pcl.points[start_pt].z;
+				if(density < 3.0)
+					path_pt.intensity = 1;
+				else
+					path_pt.intensity = 0;
+				confidence_path_pcl.points.push_back(path_pt);
+			}
+
+		}
+				
+	//plane parameters
 		float a = 0.0;
 		float b = 0.0;
 		float c = -1.0;
@@ -129,6 +172,9 @@ int main(int argc, char **argv){
 		
 		pclplane.header = pcl_conversions::toPCL( header );
 		pub_pcl.publish( pclplane );
+
+		confidence_path_pcl.header = pcl_conversions::toPCL( header );
+		pub_path_confidence.publish( confidence_path_pcl );
 
 		loop_rate.sleep();
 		ros::spinOnce();

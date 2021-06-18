@@ -1,3 +1,3 @@
 #!/bin/bash 
-rosrun tf static_transform_publisher 0.367, 0.122, 0.307 0.614, 0.681, -0.314, -0.248 "checkerboard" "intel" 10
+rosrun tf static_transform_publisher 0.403, 0.016, 0.292 0.629, 0.611, -0.345, -0.334 "checkerboard" "intel" 10
 

@@ -1,13 +1,12 @@
 /*
- * This code was developed for the manual and semi-autonomous control modes of the confidence-based control strategy of IROS 2018 submission
- * for cutting circular patterns. The code reads the initial position of the kuka arm and uses it as a reference for sending X-Y-Z control commands
- * from the readings of the stylus endtip on the haptic device. It also applies a force feedback on the Z axis to keep a correct height for
+ * This code was developed for the manual and semi-autonomous control modes of the confidence-based control strategy between 2019-2021
+ * The code reads the initial position of the kuka arm and uses it as a reference for sending X-Y-Z control commands
+ * from the readings of the haptic device positions. It also applies a force feedback on the Z axis to keep a correct height for
  * device during the tests. Once the robot is switched to the autonomous mode, an X-Y-Z force feedback controls the position of the haptic
  * device to follow and match the robot positions. This is important because once the operator returns back to the loop via the manual mode,
  * they should continue controlling the robot from the same positions that the autonomous controller was de-activated. 
  * 
  */
-
 
 #include<ros/ros.h>
 #include<omni_msgs/OmniFeedback.h>
@@ -30,20 +29,6 @@
 #include <kdl/chainjnttojacsolver.hpp>
 
 
-
-
-// desired values of x, y, z for centering the haptic device
-double x_d = 0.0;
-double y_d = 0.0;
-double z_d = 0.0;
-
-// proportional and derivate control gains for the x,y,z axis of the haptic device when tracking a certain reference position of the robot or centering them
-double kp_x = 100.0;
-double kd_x = 300.0;
-double kp_y = 100.0;
-double kd_y = 300.0;
-double kp_z = 150.0/3;
-double kd_z = 600.0/3;
 
 double needle_length = 0.0;
 
@@ -92,80 +77,21 @@ KDL::Chain LWR(){
 
 }
 
-//defining the kinematic chain of the phantom device for reading the end tip position and orientation of the stylus since they are not 
-//directly available from the ROS drivers
-KDL::Chain PHANTOM(){
-
-  KDL::Chain chain;
-  //base
-  chain.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::None),
-        KDL::Frame::DH(0,0,0,0)));
- //joint 1
-  chain.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotZ),
-        KDL::Frame::DH(0, M_PI_2,0,0)));
-  //joint 2
-  chain.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotZ),
-        KDL::Frame::DH(0.1321, 0.0,0.0,0)));
-  //joint 3
-  chain.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotZ),
-        KDL::Frame::DH(0, M_PI_2,0.0,0)));
-
-  //joint 4
-  chain.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotZ),
-        KDL::Frame::DH(0, -M_PI_2,0.1321,0)));
-  //joint 5 not considering the roll angle in th stylus (last DoF) 
-  chain.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotZ),
-        KDL::Frame::DH(0,M_PI_2,0,0)));
-  chain.addSegment(KDL::Segment(KDL::Joint(KDL::Joint::RotZ),
-        KDL::Frame::DH(0,0.0,-0.05,0)));
-   
-  
-  return chain;
-
-}
-
-
-
-
-
 //reading the kuka lwr joint positions
 sensor_msgs::JointState joints_kuka;
-//reading the phantom joint positions
-sensor_msgs::JointState joints_phantom;
 
 bool initialized_kuka = false;
-bool initialized_phantom = false;
 
 //callback for reading joint values
 void get_joints_kuka(const sensor_msgs::JointState & data){
 	for (int i = 0; i < data.position.size();++i){
 		// if this is not the first time the callback function is read, obtain the joint positions
 		if(initialized_kuka){
-			joints_kuka.position[i] = data.position[i];	
-		// otherwise initilize them with 0.0 values
+			joints_kuka.position[i] = data.position[i];
 		}
 	}	
 	initialized_kuka = true;
 }
-
-double cam_roll = 0.0;
-double cam_yaw = 0.0;
-double cam_pitch = 0.0;
-
-void get_joints_phantom(const sensor_msgs::JointState & data){
-	for (int i = 0; i < 6;++i){
-		joints_phantom.position[i] = data.position[i];	
-	}
-	cam_pitch = (2*M_PI - joints_phantom.position[3])*0.2*0.0;
-        cam_roll = (joints_phantom.position[4] - 0.6)*(0.2)*0.0;
-	//joints_phantom.position[2] -= M_PI_2; // correct the offset in reading this joint positions based on the raw sensor data
-	//joints_phantom.position[3] -= 6.29; // correct the offset in reading this joint positions based on the raw sensor data
-	joints_phantom.position[4] += 0.785398; // correct the offset in reading this joint positions based on the raw sensor data
-	initialized_phantom = true;
-        
-	
-}
-
 
 
 // initialize the joint positions with a non-zero value to be used in the solvers
@@ -186,6 +112,7 @@ void initialize_points(trajectory_msgs::JointTrajectoryPoint & _pt, int _nj, flo
 		_pt.positions.push_back(_init);
 }
 
+
 //defines the joint names for the robot (used in the jointTrajectory messages)
 void name_joints(trajectory_msgs::JointTrajectory & _cmd, int _nj){
 	for (int i = 1; i <= _nj; ++i){
@@ -196,9 +123,8 @@ void name_joints(trajectory_msgs::JointTrajectory & _cmd, int _nj){
 	}
 }
 
+
 void eval_points(trajectory_msgs::JointTrajectoryPoint & _point, KDL::JntArray & _jointpositions, int _nj){
-	// joints can move between -+: 172,120,172,120,172,120,170
-	//double joint_bounds[] = {3.002, 2.0944,3.002, 2.0944,3.002, 2.0944, 3.002};
 	for (int i = 0; i < _nj; ++i){
 		 while(_jointpositions(i) > M_PI)
 				_jointpositions(i) -= 2*M_PI;
@@ -208,17 +134,14 @@ void eval_points(trajectory_msgs::JointTrajectoryPoint & _point, KDL::JntArray &
 	}	
 }
 
-
-
-
-
 // autonomous control command variable
 trajectory_msgs::JointTrajectory auto_cmd;
 
-geometry_msgs::PoseStamped pos;
+
 // current and previous centering forces for the haptic device
 omni_msgs::OmniFeedback centering_force;
 omni_msgs::OmniFeedback centering_force_prev;
+
 
 // current and previous readings of the haptic device buttons
 omni_msgs::OmniButtonEvent button;
@@ -231,32 +154,30 @@ std_msgs::Bool test_start;
 
 bool autonomous_mode = false; // manual is 1 and 0 is auto
 
-
 //read the autonomous control command
 void get_auto(const trajectory_msgs::JointTrajectory & _data){
 	auto_cmd = _data;
 }
 
+geometry_msgs::PoseStamped phantom_pos;
 
-void get_pos(const geometry_msgs::PoseStamped & _data){
-	pos = _data;
+void get_phantom_pos(const geometry_msgs::PoseStamped & _data){
+	phantom_pos = _data;
 
 }
 
+
 // variable for tracking if the reference position of the haptic devices has changed
-bool ref_change = false;
-
-
+bool start_loc_available = false;
+std_msgs::Bool reset_auto;
 
 void get_button(const omni_msgs::OmniButtonEvent & _data){
 	button = _data;
         // check if the control mode has changed via the grey button
         if(button.grey_button == 1 && prev_button.grey_button == 0){
-		//x_d =  pos.pose.position.x; 
-		//y_d =  pos.pose.position.y; 
-		//z_d =  pos.pose.position.z; 
-		ref_change = true;
 		autonomous_mode = !autonomous_mode;
+		start_loc_available = autonomous_mode;//when switching to manual, start location has to be rest to the current pose
+		reset_auto.data = autonomous_mode;
 	}		
         // check if the test has started via the white button
 	if(button.white_button == 1 && prev_button.white_button == 0){
@@ -265,51 +186,76 @@ void get_button(const omni_msgs::OmniButtonEvent & _data){
 	prev_button = button;
 }
 
-double e_x_prev = 0.0, e_y_prev = 0.0, e_z_prev = 0.0;
 
+
+
+// desired values of x, y, z for centering the haptic device
+double x_d = 0.0;
+double y_d = 0.0;
+double z_d = 0.0;
+
+
+// proportional and derivate control gains for the x,y,z axis of the haptic device when tracking a certain reference position of the robot or centering them
+double kp_x = 25.0;
+double kd_x = 20.0;
+double kp_y = 25.0;
+double kd_y = 20.0;
+double kp_z = 50.0;
+double kd_z = 20.0;
+
+
+double e_x_prev = 0.0, e_y_prev = 0.0, e_z_prev = 0.0;
 
 //PD tracker for the position of the haptic device
 void calc_center_force(void){
 	double e_x, e_y, e_z, de_x, de_y, de_z;
 	//calculate the error
-        e_x = x_d - pos.pose.position.x; 
-	e_y = y_d - pos.pose.position.y; 
-	e_z = z_d - pos.pose.position.z; 
+        e_x = x_d - phantom_pos.pose.position.x; 
+	e_y = y_d - phantom_pos.pose.position.y; 
+	e_z = z_d - phantom_pos.pose.position.z; 
         //calculate the derivatives of the errors
         de_x = e_x - e_x_prev;
 	de_y = e_y - e_y_prev;
 	de_z = e_z - e_z_prev;
         //low pass filter for reducing the noise and jerks in the forces
 	double tau = 0.8;
-	if (autonomous_mode){
-                // apply the tracking forces for the position of the haptic device under autonomous mode 
-		centering_force.force.x = (kp_x*e_x + kd_x*de_x)*(1-tau) + tau*centering_force_prev.force.x;
-		centering_force.force.y = (kp_y*e_y + kd_y*de_y)*(1-tau) + tau*centering_force_prev.force.y;
-        }else{
-		//otherwise not force on x-y is necessary
-		centering_force.force.x = 0.0;
-		centering_force.force.y = 0.0;
-	}
-	centering_force.force.z = (kp_z*e_z + kd_z*de_z)*(1-tau) + tau*centering_force_prev.force.z;
+	centering_force.force.x = (kp_x*e_x + kd_x*de_x)*(1-tau) + tau*centering_force_prev.force.x;
+	centering_force.force.y = (kp_y*e_y + kd_y*de_y)*(1-tau) + tau*centering_force_prev.force.y;
+     	centering_force.force.z = (kp_z*e_z + kd_z*de_z)*(1-tau) + tau*centering_force_prev.force.z + 0.2;//the last component is for the effect hand weight
 	// reduce the kicks by resetting th force feedbacks when the reference changes
-        if(ref_change){
-		ref_change = false;
-		centering_force.force.x += centering_force_prev.force.x;
-		centering_force.force.y += centering_force_prev.force.y;
-		centering_force.force.z += centering_force_prev.force.z;
-	}
-	e_x_prev = e_x;
+ 	e_x_prev = e_x;
 	e_y_prev = e_y;
 	e_z_prev = e_z;
 	centering_force_prev = centering_force;
 }
 
 
+int sgn(double v) {
+  if (v < 0) return -1;
+  if (v > 0) return 1;
+  return 0;
+}
+
+double dead_zone(double _val){
+	double d = 0.005; //deadzone value of 1cm
+	if (fabs(_val) <= d){
+		return 0.0;
+	}else{
+		return _val - sgn(_val)*d;  
+	}
+	
+}
+void convert_commands(geometry_msgs::Twist & _cmd){
+	double c_gain = 0.5;
+	// xc = xh, yc = -zh, zc = -yh
+	_cmd.linear.x = dead_zone(phantom_pos.pose.position.x)*c_gain;
+	_cmd.linear.y = -dead_zone(phantom_pos.pose.position.z)*c_gain;
+	_cmd.linear.z = dead_zone(phantom_pos.pose.position.y)*c_gain;
+}
+
+
 int main(int argc, char * argv[]){
-    
-    
-    
-    
+
         // define the kinematic chain
 	KDL::Chain chain = LWR();
 	// define the forward kinematic solver via the defined chain
@@ -324,69 +270,41 @@ int main(int argc, char * argv[]){
         KDL::JntArray jointpositions = KDL::JntArray(nj);
 	// define a joint array in KDL format for the next joint positions
 	KDL::JntArray jointpositions_new = KDL::JntArray(nj);
-	// define a manual joint command array for debugging	
-	KDL::JntArray manual_joint_cmd = KDL::JntArray(nj);
-        
-        
-       // define the kinematic chain
-	KDL::Chain chain_phantom = PHANTOM();
-	// define the forward kinematic solver via the defined chain
-	KDL::ChainFkSolverPos_recursive fksolver_phantom = KDL::ChainFkSolverPos_recursive(chain_phantom);
-	
 
-	// get the number of joints from the chain
-	unsigned int nj_phantom = chain_phantom.getNrOfJoints();
-        // define a joint array in KDL format for the joint positions
-        KDL::JntArray jointpositions_phantom = KDL::JntArray(nj_phantom);
-        initialize_joints(jointpositions_phantom, nj_phantom, 0.2);
-        initialize_joints(joints_phantom, nj_phantom, 0.0);
-    
 	ros::init(argc, argv, "manual_control");
 	ros::NodeHandle nh_;
 	ros::NodeHandle home("~");
 
 	bool semi_auto = false;
-        bool stylus_tip = false;
-	home.getParam("semi_auto",semi_auto) ;
-	home.getParam("stylus_tip",stylus_tip) ;
-        
-	int loop_freq = 100;
-        float dt = (float) 1/loop_freq;
-	ros::Rate loop_rate(loop_freq);	
-        
-        tf::TransformListener listener;
-        tf::StampedTransform transform;
+	home.getParam("semi_auto",semi_auto);
 
-	ros::Publisher force_pub =nh_.advertise<omni_msgs::OmniFeedback>("/phantom/force_feedback",10);
+	int loop_freq = 10;
+        float dt = (float) 1/loop_freq;
+	ros::Rate loop_rate(loop_freq);
+
+	ros::Publisher force_pub =nh_.advertise<omni_msgs::OmniFeedback>("/phantom/force_feedback",1);
         
         // defining the puilsher that accepts joint position commands and applies them to the simulator or real robot
-	std::string command_topic = "/iiwa/manual/command";
+	std::string command_topic = "iiwa/PositionJointInterface_trajectory_controller/command";
 
+	ros::Publisher cmd_pub = nh_.advertise<trajectory_msgs::JointTrajectory>(command_topic,1);
 
-	ros::Publisher cmd_pub = nh_.advertise<trajectory_msgs::JointTrajectory>(command_topic,10);
-
-
-	ros::Publisher control_mode_pub = nh_.advertise<std_msgs::UInt8>("iiwa/control_mode",10);
+	ros::Publisher control_mode_pub = nh_.advertise<std_msgs::UInt8>("iiwa/control_mode",1);
 
 	ros::Publisher test_start_pub = nh_.advertise<std_msgs::Bool>("/test_start",10);
-        
-       
-	ros::Publisher dbg_pub = nh_.advertise<geometry_msgs::Twist>("/hapticdbg",10);
-        
-        ros::Publisher manual_commands_pub = nh_.advertise<geometry_msgs::Twist>("/manual_commands",10);
 
-	
+	ros::Publisher reset_auto_pub = nh_.advertise<std_msgs::Bool>("/reset_auto_traj",10);
+     
+       	ros::Publisher dbg_pub = nh_.advertise<geometry_msgs::Twist>("/hapticdbg",10);
 
 	// subscriber for reading the joint angles from the gazebo simulator
         ros::Subscriber joints_kuka_sub = nh_.subscribe("/iiwa/joint_states",10, get_joints_kuka);
 
-        
-        ros::Subscriber joints_phantom_sub = nh_.subscribe("/phantom/joint_states",10, get_joints_phantom);
-        
+
         ros::Subscriber auto_sub = nh_.subscribe("/iiwa/auto/command",10, get_auto);
         
 
-	ros::Subscriber pos_sub = nh_.subscribe("/phantom/pose",10, get_pos);
+	ros::Subscriber pos_sub = nh_.subscribe("/phantom/pose",10, get_phantom_pos);
 	
 	ros::Subscriber button_sub = nh_.subscribe("/phantom/button",10, get_button);
 
@@ -394,40 +312,38 @@ int main(int argc, char * argv[]){
 	trajectory_msgs::JointTrajectoryPoint pt;
 
 	initialize_points(pt,nj,0.0);
-	
-	
-	double roll, pitch, yaw, x, y, z;
-        double roll_phantom, pitch_phantom, yaw_phantom;
-        
-        // define the joint names, e.g. iiwa_joint_1 up to iiwa_joint_7
+	// define the joint names, e.g. iiwa_joint_1 up to iiwa_joint_7
 	name_joints(joint_cmd, nj);
-	
-        
-	initialize_joints(jointpositions, nj, 0.2);
-        initialize_joints(joints_kuka, nj, 0.0);
-        
-	KDL::Frame cartpos;    
-        KDL::Frame cartpos_phantom;  
-        KDL::Rotation rpy = KDL::Rotation::RPY(roll,pitch,yaw); //Rotation built from Roll-Pitch-Yaw angles
 
-	KDL::Frame current_cartpos;    
-	
-	eval_points(pt, manual_joint_cmd, nj); 
-        pt.time_from_start = ros::Duration(1.0);
-        joint_cmd.points.push_back(pt);
-        geometry_msgs::Twist ref;
-        geometry_msgs::Twist xyz;
-        geometry_msgs::Twist xyz_phantom;
-        geometry_msgs::Twist xyz_command;
-        
-        // for debugging: Calculate forward position kinematics
+	//kdl version
+	initialize_joints(jointpositions, nj, 0.2);
+	//sensor_msgs version
+        initialize_joints(joints_kuka, nj, 0.0);
+
+	KDL::Frame cartpos;
+	double roll, pitch, yaw;
+	KDL::Rotation rpy = KDL::Rotation::RPY(roll,pitch,yaw); //Rotation built from Roll-Pitch-Yaw angles
+	joint_cmd.points.push_back(pt);
+	//new reference position for KUKA in world
+        geometry_msgs::Twist ref_in_kuka;
+	//initial 3D pose of KUKA in world
+        geometry_msgs::Twist kuka_initial;
+	// delta position in the camera frame
+        geometry_msgs::Twist command_c;
+
+	// for debugging: Calculate forward position kinematics
         bool kinematics_status;
-        bool start_loc_available = false;
+
         bool all_zero = true;
 
 	std_msgs::UInt8 control_mode;
-        tf::Transform inv_transform;
         test_start.data = false;
+
+        tf::TransformListener listener;
+        tf::StampedTransform transform;
+        tf::Transform inv_transform;
+
+
         while (ros::ok()){
                
                 try{
@@ -439,172 +355,92 @@ int main(int argc, char * argv[]){
                     ros::Duration(1.0).sleep();
                     continue;
                 }
-                tf::Vector3 pos_in_camera, pos_in_world;
-                tf::Quaternion rot_in_cam;
-                
+		tf::Vector3 pos_in_camera, pos_in_world;
 		if (initialized_kuka){
 			
-                        if(initialized_phantom){
-                            for (int k = 0; k<nj_phantom; ++k){
-                                    jointpositions_phantom(k) = joints_phantom.position[k];                                    
-                            }
-                            kinematics_status = fksolver_phantom.JntToCart(jointpositions_phantom,cartpos_phantom);
-                                if(kinematics_status>=0){
-                                    xyz_phantom.linear.x = cartpos_phantom.p[0];
-                                    xyz_phantom.linear.y = cartpos_phantom.p[1];
-                                    xyz_phantom.linear.z = cartpos_phantom.p[2];
-                                    cartpos_phantom.M.GetRPY(roll_phantom,pitch_phantom, yaw_phantom);
-                                    xyz_phantom.angular.x = roll_phantom;
-                                    xyz_phantom.angular.y = pitch_phantom;
-                                    xyz_phantom.angular.z = yaw_phantom;
-                                    
-                                    dbg = xyz_phantom;
-                                    //dbg.angular.x = roll;
-                                    //dbg.angular.y = pitch;
-                                    //dbg.angular.z = yaw;
-                            }
-                            
-                            
-                            
-                        }
-                    
-                    
-                        // update the joint positions with the most recent readings from the joints
+			//update the kdl variables based on the joint readings from robot
 			for (int k = 0; k<7; ++k){
 				jointpositions(k) = joints_kuka.position[k];
                                 all_zero &= (fabs(jointpositions(k)) <.01);
                                     
-			}				
-                        if(!all_zero){
+			}
+		}
+		if(!all_zero){
                         //find where the robot is initially
-                            if(!start_loc_available){
+			if(!start_loc_available){
                                 kinematics_status = fksolver.JntToCart(jointpositions,cartpos);
                                 if(kinematics_status>=0){
-                                        xyz.linear.x = cartpos.p[0];
-                                        xyz.linear.y = cartpos.p[1];
-                                        xyz.linear.z = cartpos.p[2];
+                                        kuka_initial.linear.x = cartpos.p[0];
+                                        kuka_initial.linear.y = cartpos.p[1];
+                                        kuka_initial.linear.z = cartpos.p[2];
                                         cartpos.M.GetRPY(roll,pitch, yaw);
-                                        xyz.angular.x = roll;
-                                        xyz.angular.y = pitch;
-                                        xyz.angular.z = yaw;
+                                        kuka_initial.angular.x = roll;
+                                        kuka_initial.angular.y = pitch;
+                                        kuka_initial.angular.z = yaw;
                                 }
                                 start_loc_available = true;
-                                
-                            }else{
-                                double c_gain = 0.50;
-                                // if the positions are read from the ROS driver directly
-                                if(!stylus_tip){
-                                    xyz_command.linear.x = pos.pose.position.x;
-                                    xyz_command.linear.y = -pos.pose.position.z;
-                                    xyz_command.linear.z = pos.pose.position.y*c_gain;
-			//            xyz_command.linear.x = - pos.pose.position.y;
-                        //            xyz_command.linear.y = pos.pose.position.x;
-                        //            xyz_command.linear.z = pos.pose.position.z*z_gain;
-                                    
-                                }else{
-                                    xyz_command.linear.x = (xyz_phantom.linear.x-0.15)*c_gain;
-                                    xyz_command.linear.y = xyz_phantom.linear.y*c_gain;
-                                    xyz_command.linear.z = xyz_phantom.linear.z*c_gain;                                    
-                                    
-                                }
                                
-                                
-                                
-                                //ref.linear.x = xyz.linear.x + xyz_command.linear.x;
-                                //ref.linear.y = xyz.linear.y + xyz_command.linear.y;
-                                //ref.linear.z = xyz.linear.z + xyz_command.linear.z;
-                                
-                                //new stuff about the world to cam transformations 
-                                //converte the xyz of robot to camera frame
-                                pos_in_camera = transform(tf::Vector3(xyz.linear.x,xyz.linear.y,xyz.linear.z));
-                                // add the haptic device commands to it
-                                ref.linear.x = pos_in_camera.x() + xyz_command.linear.x; //no rotation included
-                                ref.linear.y = pos_in_camera.y() + xyz_command.linear.y; //no rotation included 
-                                ref.linear.z = pos_in_camera.z() + xyz_command.linear.z; 
-                                //trun into world frame again
-                                pos_in_world = inv_transform(tf::Vector3(ref.linear.x,ref.linear.y,ref.linear.z));
-                                
-                                ref.linear.x = pos_in_world.x();
-                                ref.linear.y = pos_in_world.y();
-                                ref.linear.z = pos_in_world.z();
-                                
-                                //rotations
-                                tf::Quaternion rot_in_world;
-                                rot_in_world.setRPY(roll, pitch, yaw); // set a quaternion with world rpy for robot
-                                double robot_roll_in_cam = 0.0; 
-                                double robot_pitch_in_cam = 0.0;
-                                double robot_yaw_in_cam = 0.0;
-                                rot_in_cam = transform*(rot_in_world);//can we really transform quaternions?! //transform the rotations to the camera frame
-                                tf::Matrix3x3(rot_in_cam).getRPY(robot_roll_in_cam, robot_pitch_in_cam, robot_yaw_in_cam); //determine the corresponding rpy in the camera frame
-                                dbg.linear.x = cam_roll; 
-                                dbg.linear.y = cam_pitch;
-                                dbg.linear.z = cam_yaw;
-                                
-                                //ref.linear.z = 0.6715;
-                                //keep the same orientation
-                                //ref.angular.x = xyz.angular.x;// + xyz_command.angular.x; //180 rotation included
-                                //ref.angular.y = xyz.angular.y+.1;// + xyz_command.angular.y-1.0; //180 rotation included
-                                //ref.angular.z = xyz.angular.z;// + xyz_command.angular.z;
-                                //apply the commands locally in the camera frame
-                               //// ref.angular.x = robot_roll_in_cam + cam_pitch;
-                               //// ref.angular.y = robot_pitch_in_cam;
-                               //// ref.angular.z = robot_yaw_in_cam + cam_yaw;
+                        }else{
+				//convert from the haptic device frames to camera frame with additional deadzone and scaling
+				convert_commands(command_c);
+				dbg  = command_c;
 
-        			ref.angular.x = robot_roll_in_cam + cam_roll;
-                                ref.angular.y = robot_pitch_in_cam + cam_pitch;
-                                ref.angular.z = robot_yaw_in_cam;
-                                
-                                //prep for the transformation
-                                rot_in_cam.setRPY(ref.angular.x,ref.angular.y,ref.angular.z);
-                                
-                                rot_in_world = inv_transform*(rot_in_cam);
-                                tf::Matrix3x3(rot_in_world).getRPY(ref.angular.x,ref.angular.y,ref.angular.z); //determine the final rpy command in the world frame
-                                
-                                dbg.angular.x = ref.angular.x;
-                                dbg.angular.y = ref.angular.y;
-                                dbg.angular.z = ref.angular.z;
-                                
-                                // update the reference cartesian positions
-                                cartpos.p[0]=ref.linear.x;
-                                cartpos.p[1]=ref.linear.y;
-                                cartpos.p[2]=ref.linear.z;			
-                                rpy = KDL::Rotation::RPY(ref.angular.x,ref.angular.y,ref.angular.z);
-                                cartpos.M = rpy;
-                                int ret = iksolver.CartToJnt(jointpositions,cartpos,jointpositions_new);
+				pos_in_camera = 	transform(tf::Vector3(kuka_initial.linear.x,kuka_initial.linear.y,kuka_initial.linear.z));
+				dbg.angular.x = pos_in_camera.x();
+				dbg.angular.y = pos_in_camera.y();
+				dbg.angular.z = pos_in_camera.z();
+
+				geometry_msgs::Twist tmp;
+				tmp.linear.x = pos_in_camera.x() + command_c.linear.x;
+				tmp.linear.y = pos_in_camera.y() + command_c.linear.y;
+				tmp.linear.z = pos_in_camera.z() + command_c.linear.z;
+
+				pos_in_world = inv_transform(tf::Vector3(tmp.linear.x,tmp.linear.y,tmp.linear.z));
+
+				ref_in_kuka.linear.x = pos_in_world.x();
+				ref_in_kuka.linear.y = pos_in_world.y();
+				ref_in_kuka.linear.z = pos_in_world.z();
+				cartpos.p[0] = ref_in_kuka.linear.x;
+				cartpos.p[1] = ref_in_kuka.linear.y;
+				cartpos.p[2] = ref_in_kuka.linear.z;
+
+				int ret = iksolver.CartToJnt(jointpositions,cartpos,jointpositions_new);
                                 eval_points(pt, jointpositions_new, nj);
                                 pt.time_from_start = ros::Duration(dt);
                                 joint_cmd.points[0] = pt;
-                                joint_cmd.header.stamp = ros::Time::now();
 
-				if (autonomous_mode){
+				if (reset_auto.data){
+					reset_auto_pub.publish(reset_auto);
+					reset_auto.data = false;
+				}else if (autonomous_mode){
 					joint_cmd = auto_cmd;                                
-                                	kinematics_status = fksolver.JntToCart(jointpositions,current_cartpos);
-					y_d = -(current_cartpos.p[0] -xyz.linear.x);
-					x_d = current_cartpos.p[1]-xyz.linear.y;
-					z_d = current_cartpos.p[2]-xyz.linear.z;                                                            
-                                }
+        	                }
+				joint_cmd.header.stamp = ros::Time::now();
                                 cmd_pub.publish(joint_cmd);
-                            }
-                        }
-                                        
-                }
+
+				dbg.linear.x = tmp.linear.x;
+				dbg.linear.y = tmp.linear.y; 
+				dbg.linear.z = tmp.linear.z;
+				dbg_pub.publish(dbg);
+				
+			}
+			//end of if(!start_loc_available)
+
+
+		}
+
 		if(autonomous_mode)
 			control_mode.data = 0;
 		else
 			control_mode.data = 1;
-                manual_commands_pub.publish(ref);
-                
-                dbg_pub.publish(dbg);
+
 		control_mode_pub.publish(control_mode);
 
-		test_start_pub.publish(test_start);
-
-                calc_center_force();
+		calc_center_force();
 		force_pub.publish(centering_force);
 		ros::spinOnce();
 		loop_rate.sleep();
+
 	}
-
-
 	return 0;
 }

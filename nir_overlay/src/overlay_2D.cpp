@@ -120,9 +120,9 @@ int main(int argc, char * argv[]){
 	ros::Rate loop_rate(loop_freq);
 
 	// subscribe to the rectified rgb input (needs the calibration file read in the launch file for the camera)
-	ros::Subscriber cam_sub = nh_.subscribe("/camera/color/image_rect_color",1,get_img);
+	ros::Subscriber cam_sub = nh_.subscribe("/camera/color/image_raw",1,get_img);
 	ros::Subscriber caminfo_sub = nh_.subscribe("/camera/color/camera_info",1,get_caminfo);
-	ros::Subscriber pcl_sub = nh_.subscribe("/nir_overlay_intel/cog",1,get_pcl);
+	ros::Subscriber pcl_sub = nh_.subscribe("/filtered_tissue_traj",1,get_pcl);
 	ros::Subscriber freeze_path_sub = nh_.subscribe("/freeze_path",1,get_freeze);	
 	
 	//publisher for checking the images and debugging them
@@ -149,6 +149,20 @@ int main(int argc, char * argv[]){
 		  }
 		  for (int i = 0; i < stduv.size(); i++){		  
 			circle(img, Point(stduv[i].x, stduv[i].y), 1, Scalar(0,255,0), 1, LINE_AA);
+			int thickness = 1;
+			int lineType = LINE_8;
+			Point start;
+			start.x = stduv[i].x;
+			start.y = stduv[i].y;
+			Point end;
+			end.x = stduv[(i+1)%stduv.size()].x;
+			end.y = stduv[(i+1)%stduv.size()].y;
+			line( img,
+			    start,
+			    end,
+			    Scalar( 0, 0, 0 ),
+			    thickness,
+			    lineType );
 		  }
 	   	  Mat img_crop = img(roi);
 		  cv_ptr->image = img_crop;

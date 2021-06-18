@@ -1,10 +1,10 @@
 
 <launch>
 	<node name ="overlay_2D_manual" pkg="nir_overlay" type="overlay_2D_flea">
-		<param name = "roi_l" value = "250"/>
+		<param name = "roi_l" value = "450"/>
 		<param name = "roi_r" value = "450"/>
-		<param name = "roi_u" value = "60"/>
-		<param name = "roi_b" value = "350"/>
+		<param name = "roi_u" value = "70"/>
+		<param name = "roi_b" value = "550"/>
 		<param name = "show_markers" value = "true"/>
 	</node>
 	<node name = "gui" pkg ="rqt_gui" type ="rqt_gui"/>

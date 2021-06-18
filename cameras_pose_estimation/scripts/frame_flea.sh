@@ -1,4 +1,4 @@
 #!/bin/bash 
-rosrun tf static_transform_publisher 0.424, -0.026, 0.306 0.687, 0.595, -0.278, -0.312 "checkerboard" "flea" 10
+rosrun tf static_transform_publisher 0.417, 0.151, 0.341 0.598, 0.689, -0.345, -0.219 "checkerboard" "flea" 10
 
 

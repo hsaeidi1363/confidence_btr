@@ -81,7 +81,7 @@ float calc_density(geometry_msgs::Vector3 x1, geometry_msgs::Vector3 x2, pcl::Po
 	pcl::PointCloud<pcl::PointXYZI>::iterator pi=pcd.begin();
 	float density = 0.0;
 	int ctr = 0;
-  	float r_c = 0.005;//radius of the cylinder for finding point dentisty between two points
+  	float r_c = 0.0025;//radius of the cylinder for finding point dentisty between two points
 	for( ; pi!=pcd.end(); pi++ ) {
 
 		geometry_msgs::Vector3 x0;
@@ -98,7 +98,7 @@ float calc_density(geometry_msgs::Vector3 x1, geometry_msgs::Vector3 x2, pcl::Po
 	}
 
   	 double h = vec_len(x1, x2);
- 	 double cyl_volume = M_PI*r_c*r_c*h*1000000;//volume of the cylinder formed by x1-x2 line and radius r_c
+ 	 double cyl_volume = M_PI*r_c*r_c*h*1000000000;//volume of the cylinder formed by x1-x2 line and radius r_c
  // cout << "volume was: " << cyl_volume<< " for h= "<< h << endl; 
 	//return density/pcd.points.size();
 	return density/cyl_volume;

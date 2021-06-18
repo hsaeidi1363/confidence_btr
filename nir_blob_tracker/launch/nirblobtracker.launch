@@ -1,5 +1,8 @@
 <launch>
-	<include file = "$(find realsense2_camera)/launch/rs_rgbd.launch"/>
+	<include file = "$(find realsense2_camera)/launch/rs_camera.launch">
+		<arg name ="filters" value = "pointcloud"/>
+	</include>
+
 	<node pkg="nir_blob_tracker" type="dyn_laser.py" name="laser_toggle"/>
     <node pkg="nir_blob_tracker" type="intel_pcl_filter" name="pcl_filter"/>
 # it reads from the raw image not the calibrated one

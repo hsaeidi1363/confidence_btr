@@ -1,6 +1,5 @@
 <launch>
-	<node pkg = "manual_control" type="manual_control" name= "manual_control" required = "true">
+	<node pkg = "manual_control" type="manual_control" name= "manual_control" required = "true" output="screen">
 		<param name ="semi_auto" value = "true"/>
-		<param name ="stylus_tip" value = "false"/>
 	</node>
 </launch>

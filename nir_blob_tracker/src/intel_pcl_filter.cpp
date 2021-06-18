@@ -41,7 +41,7 @@ public:
     
     sub_intel_laser = nh.subscribe("d415_laser_off", 1 , &IntelPCLFilter::CallbackLaser, this);
 	
-    sub_pcl = nh.subscribe("camera/depth_registered/points", 10, &IntelPCLFilter::pcl_callback, this);
+    sub_pcl = nh.subscribe("/camera/depth/color/points", 10, &IntelPCLFilter::pcl_callback, this);
 
     pub_pcl= nh.advertise<sensor_msgs::PointCloud2>( "d415/filtered_points", 10 );
 

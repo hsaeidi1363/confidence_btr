@@ -7,7 +7,7 @@
 	<group ns="flea">	
 		<include file = "$(find pointgrey_camera_driver)/launch/camera.launch">
 			<arg name="calibrated" value ="1"/>
-			<arg name="camera_serial" value= "flea"/>
+			<arg name="camera_serial" value= "21090063"/>
 		</include>
 	</group>
 </launch>
