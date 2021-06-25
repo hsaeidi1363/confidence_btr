@@ -130,7 +130,7 @@ void NIROverlay::Callback( const sensor_msgs::CameraInfo& msginfo,
 
     try {  // get the pos/ori of raytrix wrt basler
       tf::StampedTransform tfRt;
-      listener.lookupTransform( "basler", "intel", ros::Time(0), tfRt );
+      listener.lookupTransform( "basler", "camera_depth_optical_frame", ros::Time(0), tfRt );
 
       tf::StampedTransform tfRt_dbg; // for checking the transformations in robot frame
       listener_dbg.lookupTransform( "kuka", "intel", ros::Time(0), tfRt_dbg );
@@ -208,49 +208,48 @@ void NIROverlay::Callback( const sensor_msgs::CameraInfo& msginfo,
         cvcog[j] = cv::Mat( cogj );
       }
 
-      for( size_t j=0; j<cog.polygon.points.size(); j++ ){
-	      bool found = false;
-	      for( size_t i=0; i<stduv.size(); i++ ){
+       for( size_t j=0; j< cog.polygon.points.size(); j++ ){
+        // if the 3D point projection is within the NIR image, then overlay 
+        // the NIR intensity on the point cloud +30 on the red channel   
+        float min_dist = 1000000;
+	      int min_ind = 0;
+         
+        for( size_t i=0; i< stduv.size(); i++ ){
+            cv::Mat stduvi( stduv[i] );  //stduv is projected 2d points from 3D pointCloud
+          //            user_clicked point,        point cloud projected   
+        double dist =  cv::norm( cvcog[j], stduvi );
+          
+        if (dist < min_dist){
+			       min_dist = dist;
+			       min_ind = i;
+             }
+        } 
+                    
+         pcl::PointXYZI xyzi;
+         xyzi.x = stdxyz[min_ind].x;
+         xyzi.y = stdxyz[min_ind].y;
+         xyzi.z = stdxyz[min_ind].z;
+         xyzi.intensity = j;
+         pclcog.push_back( xyzi );
+         polygon3D_pt.x = xyzi.x;
+	polygon3D_pt.y = xyzi.y;
+	polygon3D_pt.z = xyzi.z;
+	polygon3D.points.push_back(polygon3D_pt);
 
-		// if the 3D point projection is within the NIR image, then overlay 
-		// the NIR intensity on the point cloud +30 on the red channel
-		
-	    	  cv::Mat stduvi( stduv[i] );
-		  //rsd - is this value the radius of search in pixels??
-		  if( cv::norm( cvcog[j], stduvi ) < 4 && !found){
-		    cv::Point2f cj( 100000,100000 );
-		    cvcog[j] = cv::Mat(cj);
-		    pcl::PointXYZI xyzi;
-		    xyzi.x = stdxyz[i].x;
-		    xyzi.y = stdxyz[i].y;
-		    xyzi.z = stdxyz[i].z;
-		    xyzi.intensity = j;
-		    if(xyzi.z < 0.6){
-			    pclcog.push_back( xyzi );
-			    polygon3D_pt.x = xyzi.x;
-			    polygon3D_pt.y = xyzi.y;
-			    polygon3D_pt.z = xyzi.z;
-			    polygon3D.points.push_back(polygon3D_pt);
-
-			    //some debugging for the kuka frame coordinates of the COG
-			    tf::Vector3 pos_in_kuka;
-			    pos_in_kuka = tfRt_dbg(tf::Vector3(xyzi.x,xyzi.y,xyzi.z));
-			    geometry_msgs::Point32 kuka_pt;
-			    kuka_pt.x = pos_in_kuka.x();
-			    kuka_pt.y = pos_in_kuka.y();
-			    kuka_pt.z = pos_in_kuka.z();
-			    kuka_polygon.points.push_back(kuka_pt);
-			    found = true;
-		    }
-		    ////////
-		  }
-	    }
+	//some debugging for the kuka frame coordinates of the COG
+	tf::Vector3 pos_in_kuka;
+	pos_in_kuka = tfRt_dbg(tf::Vector3(xyzi.x,xyzi.y,xyzi.z));
+	geometry_msgs::Point32 kuka_pt;
+	kuka_pt.x = pos_in_kuka.x();
+	kuka_pt.y = pos_in_kuka.y();
+	kuka_pt.z = pos_in_kuka.z();
+	kuka_polygon.points.push_back(kuka_pt);
       }
 
       std_msgs::Header header;
       header.stamp = ros::Time::now();
       header.seq = seq++;
-      header.frame_id = std::string( "/camera_color_optical_frame" );
+      header.frame_id = std::string( "/camera_depth_optical_frame" );
 		
       pclcog.header = pcl_conversions::toPCL( header );
       pcldbg.header = pcl_conversions::toPCL( header );

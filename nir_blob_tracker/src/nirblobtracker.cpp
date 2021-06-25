@@ -41,6 +41,7 @@ private:
   image_transport::Subscriber     sub_image;
   
   ros::Subscriber sub_intel_laser; //for chacking if the laser on the intel D415 is off or not. we can only rely on NIR camera when laser is off
+  ros::Subscriber sub_pause_tracker;
 
   ros::Publisher                  pub_polygon;
   std::vector<vpDot2>             blobs;
@@ -51,6 +52,7 @@ public:
   bool 							  laser_off;
   double 						  t0;
   double 						  t1;
+  bool 			 pause_tracker;
   vpDisplay*                      vp_display;
   vpImage<unsigned char>          vp_image;
 
@@ -59,6 +61,7 @@ public:
     
     sub_image=it.subscribe( "/pylon_camera_node/image_raw", 1, &NIRBlobTracker::CallbackImage, this );
     sub_intel_laser = nh.subscribe("d415_laser_off", 1 , &NIRBlobTracker::CallbackLaser, this);
+    sub_pause_tracker = nh.subscribe("pause_blob_tracker", 1 , &NIRBlobTracker::CallbackPause, this);
 
     pub_polygon=nh.advertise<geometry_msgs::PolygonStamped>( "/markers/cog", 100 );
 
@@ -68,6 +71,13 @@ public:
   } 
   
   ~NIRBlobTracker(){ vp_display->closeDisplay(); }
+   void CallbackPause(const std_msgs::BoolConstPtr& msg){
+    pause_tracker = msg->data;
+    if(pause_tracker)
+	{ std::cout<<"Tracking Paused."<<std::endl;}
+    else
+	{ std::cout<<"Tracking Resumed."<<std::endl;}
+   }
 
    void CallbackLaser(const std_msgs::BoolConstPtr& msg){
     laser_off = msg->data;
@@ -96,11 +106,14 @@ public:
 		for( std::size_t i=0; i<blobs.size(); i++ )
 		  { blobs[i].setGraphics( true ); }
 		
-		for( std::size_t i=0; i<blobs.size(); i++){
-		  try{ blobs[i].track( vp_image ); }
-		  catch (...) 
-		{ /*std::cout<<"blobs["<<i<<"].tracking failed."<<std::endl;*/ }
-		}
+
+		   if(!pause_tracker){    
+			    for( std::size_t i=0; i<blobs.size(); i++){
+			      try{ blobs[i].track( vp_image ); }
+			      catch (...) 
+				{ std::cout<<"blobs["<<i<<"].tracking failed."<<std::endl; return;}
+			    }
+		    }
 
 		// *** display markers on the image *** //
 		geometry_msgs::PolygonStamped polygon;

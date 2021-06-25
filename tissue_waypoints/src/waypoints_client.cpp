@@ -120,7 +120,7 @@ int main(int argc, char **argv){
 				std_msgs::Header header;
 				header.stamp = ros::Time::now();
 				header.seq = seq2++; 
-				header.frame_id = std::string("camera_color_optical_frame");
+				header.frame_id = std::string("camera_depth_optical_frame");
 				offset_cog.header = pcl_conversions::toPCL(header);
 				offset_cog_pub.publish(offset_cog);
 			}
@@ -169,7 +169,7 @@ int main(int argc, char **argv){
 					std_msgs::Header header;
 					header.stamp = ros::Time::now();
 					header.seq = seq++; // is this correct?
-					header.frame_id = std::string("camera_color_optical_frame");
+					header.frame_id = std::string("camera_depth_optical_frame");
 					output_traj.header = pcl_conversions::toPCL(header);
 					short_output_traj.header = pcl_conversions::toPCL(header);
 					traj_pub.publish(output_traj);
@@ -190,7 +190,7 @@ int main(int argc, char **argv){
 			ROS_INFO("----------Filtered loop %d of traj",seq2);
 			std_msgs::Header header;
 			header.stamp = ros::Time::now();
-			header.frame_id = std::string("camera_color_optical_frame");
+			header.frame_id = std::string("camera_depth_optical_frame");
 			filtered_output_traj.header = pcl_conversions::toPCL(header);
 	 		filtered_traj_pub.publish(filtered_output_traj);
 		}

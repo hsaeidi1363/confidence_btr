@@ -2,4 +2,5 @@
 	<node pkg = "cameras_pose_estimation" type ="frame_intel.sh" name ="intel_frame"/>
 	<node pkg = "cameras_pose_estimation" type ="frame_basler.sh" name ="basler_frame"/>
 	<node pkg = "cameras_pose_estimation" type ="frame_flea.sh" name ="flea_frame"/>
+	<node pkg = "cameras_pose_estimation" type ="frame_optical_intel link.sh" name ="link_frame"/>
 </launch>

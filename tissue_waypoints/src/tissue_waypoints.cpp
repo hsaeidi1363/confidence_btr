@@ -141,7 +141,7 @@ bool find(tissue_waypoints::Trajectory::Request &req,
 
   std_msgs::Header header;
   header.stamp = ros::Time::now();
-  header.frame_id = std::string("camera_color_optical_frame");
+  header.frame_id = std::string("camera_depth_optical_frame");
   dbg_pcd.header = pcl_conversions::toPCL(header);
   dbg_pub.publish(dbg_pcd);
 

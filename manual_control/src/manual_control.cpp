@@ -20,6 +20,7 @@
 #include<std_msgs/UInt8.h>
 #include<std_msgs/Bool.h>
 #include<tf/transform_listener.h>
+#include<iiwa_msgs/TimeToDestination.h>
 
 #include <kdl/chainfksolver.hpp>
 #include <kdl/chainiksolver.hpp>
@@ -308,6 +309,9 @@ int main(int argc, char * argv[]){
 	
 	ros::Subscriber button_sub = nh_.subscribe("/phantom/button",10, get_button);
 
+	ros::ServiceClient client = nh_.serviceClient<iiwa_msgs::TimeToDestination>("iiwa/state/timeToDestination");
+	iiwa_msgs::TimeToDestination config;
+
         trajectory_msgs::JointTrajectory joint_cmd;
 	trajectory_msgs::JointTrajectoryPoint pt;
 
@@ -413,6 +417,19 @@ int main(int argc, char * argv[]){
 					reset_auto_pub.publish(reset_auto);
 					reset_auto.data = false;
 				}else if (autonomous_mode){
+					float rem_time;
+					if(client.call(config)){
+						rem_time = config.response.remaining_time;
+						if(rem_time < 0.0){
+							reset_auto.data = true;
+							reset_auto_pub.publish(reset_auto);
+							reset_auto.data = false;
+							std::cout << "reset the traj"<<std::endl;
+						}
+					//	std::cout << "got the service value "<< rem_time<<std::endl;
+					}else{
+						std::cout << "could not call the service"<<std::endl;
+					}
 					joint_cmd = auto_cmd;                                
         	                }
 				joint_cmd.header.stamp = ros::Time::now();

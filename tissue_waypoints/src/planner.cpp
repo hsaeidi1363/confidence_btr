@@ -69,7 +69,9 @@ int main(int argc, char **argv){
 	      try{
 			tf::StampedTransform cam_in_rob;//transformation of intel camera in the world frame
 			// get the transformation
-			listener.lookupTransform("kuka", "world", ros::Time(0), cam_in_rob);
+			listener.lookupTransform("kuka", "camera_depth_optical_frame", ros::Time(0), cam_in_rob);
+// for debugging without the robot
+///			listener.lookupTransform("kuka", "world", ros::Time(0), cam_in_rob);
 			tf::Transform inv_transform;
 			inv_transform = cam_in_rob.inverse();
 
@@ -85,7 +87,7 @@ int main(int argc, char **argv){
 		 
 			  plan_pt.positions.push_back(pose_in_world.x()- 0.0005); 
 			  plan_pt.positions.push_back(pose_in_world.y()- 0.002); 
-			  plan_pt.positions.push_back(pose_in_world.z()+ 0.002); 
+			  plan_pt.positions.push_back(pose_in_world.z()+ 0.005); 
 
 			  plan_pt.positions.push_back(rob_pos.angular.x);
 			  plan_pt.positions.push_back(rob_pos.angular.y);
@@ -128,7 +130,7 @@ int main(int argc, char **argv){
 				}
 				std_msgs::Header header;
 				header.stamp = ros::Time::now();
-				header.frame_id = std::string("world");
+				header.frame_id = std::string("camera_depth_optical_frame");
 				dbg_cloud.header = pcl_conversions::toPCL(header);
 				dbg_traj_pub.publish(dbg_cloud);
 				plan_pub.publish(plan);

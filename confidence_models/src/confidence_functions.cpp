@@ -76,12 +76,31 @@ float dist_from_line(geometry_msgs::Vector3 x0, geometry_msgs::Vector3 x1, geome
 
 }
 
+// check if the point x0 is between the cylinder caps formed around the line from x1 to x2 
+bool between_caps(geometry_msgs::Vector3 x0, geometry_msgs::Vector3 x1,geometry_msgs::Vector3 x2, float h){
+  geometry_msgs::Vector3 diff1;  
+  geometry_msgs::Vector3 diff2;
+  
+  diff1 = subt(x0, x1);  
+  diff2 = subt(x2, x1);  
+
+  float dot_prod = diff1.x*diff2.x + diff1.y*diff2.y + diff1.z*diff2.z;
+  
+  if(dot_prod < 0.0 || dot_prod > h)
+	return false;
+  else
+	return true;
+
+}
+
+
 // finds the number of points in the point cloud that fit in a cylinder between a two marker positions (i.e. start and end points)
 float calc_density(geometry_msgs::Vector3 x1, geometry_msgs::Vector3 x2, pcl::PointCloud<pcl::PointXYZI> pcd){
 	pcl::PointCloud<pcl::PointXYZI>::iterator pi=pcd.begin();
 	float density = 0.0;
 	int ctr = 0;
   	float r_c = 0.0025;//radius of the cylinder for finding point dentisty between two points
+	double h = vec_len(x1, x2);
 	for( ; pi!=pcd.end(); pi++ ) {
 
 		geometry_msgs::Vector3 x0;
@@ -92,12 +111,13 @@ float calc_density(geometry_msgs::Vector3 x1, geometry_msgs::Vector3 x2, pcl::Po
 		float distance = 0.0;
 		distance = dist_from_line(x0, x1, x2);
   
-		if (distance <= r_c)
+		bool inside_caps = between_caps(x0, x1, x2,h);
+		if (distance <= r_c && inside_caps)
 			density += 1.0;
  		ctr ++;
 	}
 
-  	 double h = vec_len(x1, x2);
+
  	 double cyl_volume = M_PI*r_c*r_c*h*1000000000;//volume of the cylinder formed by x1-x2 line and radius r_c
  // cout << "volume was: " << cyl_volume<< " for h= "<< h << endl; 
 	//return density/pcd.points.size();
@@ -189,4 +209,13 @@ void show_plane(float & _a, float & _b, float & _d,  pcl::PointCloud<pcl::PointX
     }
   }
 
+}
+
+
+float mid_point_dist(geometry_msgs::Vector3 & a_, geometry_msgs::Vector3 & b_){
+	geometry_msgs::Vector3 c;
+	c.x = (a_.x + b_.x)/2;
+	c.y = (a_.y + b_.y)/2;
+	c.z = (a_.z + b_.z)/2;
+	return norm(c);
 }

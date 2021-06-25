@@ -1,5 +1,8 @@
 <launch>
-	<include file = "$(find realsense2_camera)/launch/rs_camera.launch"/>
+	<include file = "$(find realsense2_camera)/launch/rs_camera.launch">
+		<arg name ="filters" value = "pointcloud"/>
+	</include>
+
 	<node pkg ="cameras_pose_estimation" type="checkerboard_intel.sh" name="intel_checkerboard"/>
 	<node pkg ="rqt_reconfigure" type="rqt_reconfigure" name="intel_configure"/>
 </launch>

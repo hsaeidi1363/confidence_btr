@@ -35,6 +35,22 @@ void get_polygon(const geometry_msgs::Polygon & _data){
 	ROS_INFO("got a new reading from 3D polygons ");
 }
 
+float calc_projected_err(float roll_, float pitch_, float dist_, float density_){
+	float w1 = 0.25;//weight for roll
+	float w2 = 0.25;//weight for pitch
+	float w3 = 0.5;//weight for dist
+	float w4 = 1.0;//weight for density
+
+	float e1 = 0.000065*roll_*roll_ + 0.0046*roll_ + 1.2134;
+	float e2 = 0.0001564*pitch_*pitch_ - 0.00016*pitch_ + 1.1737;
+	float e3 = 0.0761*dist_*100 - 1.3919;//converted to cm first
+	float e4 =  10.5458*exp(-0.8991*density_);
+
+	std::cout<<" e1: "<< e1 <<" e2: "<< e2 <<" e3: "<< e3 <<" e4: "<< e4 <<std::endl; 
+	return w1*e1+w2*e2+w3*e3+w4*e4;
+}
+
+
 int main(int argc, char **argv){
   ros::init(argc, argv, "confidence_modles");
   ros::NodeHandle nh_;
@@ -109,6 +125,25 @@ int main(int argc, char **argv){
 
 		}
 */
+
+		//plane parameters
+		float a = 0.0;
+		float b = 0.0;
+		float c = -1.0;
+		float d = 0.0;
+		fit_plane(a, b, d, cropped_pcl);
+		std::cout<<" the plane parameters are: "<< a << ", "<< b << ", "<< c<< ", "<< d<< std::endl;
+		// checking the distance of the camera origing to the fitted plane
+		float e = sqrt(a*a + b*b + c*c);
+		float f = fabs(d)/e; // since the origin has (0,0,0)=> ax+by+z+d is equal to d
+		//http://www.nabla.hr/CG-LinesPlanesIn3DA3.htm
+		// angular position of the fitted plane compared to the x axis of camera
+		float pitch = 90-acos(fabs(a/e))*180/3.1415;
+		// angular position of the fitted plane compared to the y axis of camera		
+		float roll = -(90 - acos(fabs(b/e))*180/3.1415);
+		std::cout<<" distance from origin is: " << f<< std::endl;
+		std::cout<<" rotation angle around X is: " << roll<<" rotation angle around Y is: " << pitch<< std::endl;
+
 		pcl::PointCloud<pcl::PointXYZI> confidence_path_pcl;
 		int pts_len = path_pcl.points.size();
 		if(pts_len == 0 || pts_len == 1){
@@ -128,38 +163,28 @@ int main(int argc, char **argv){
 
 				float density = calc_density(x1, x2, cropped_pcl);
 				float noise = calc_noise(x1, x2, cropped_pcl);
+				float mid_dist = mid_point_dist(x1, x2);
 				std::cout<<"between points "<< start_pt<< " and " << end_pt<< " density is: "<< density << " and noise is: "<<noise<<std::endl;
+				std::cout<<"and dist to origin is: "<<mid_dist<<std::endl;
 //				std::cout<<"noise between points "<< start_pt<< " and " << end_pt<< " is: "<< noise<<std::endl;
 				pcl::PointXYZI path_pt;
 				path_pt.x = path_pcl.points[start_pt].x;
 				path_pt.y = path_pcl.points[start_pt].y;
 				path_pt.z = path_pcl.points[start_pt].z;
-				if(density < 3.0)
+				float proj_err = calc_projected_err(roll, pitch, mid_dist, density);
+				std::cout<<"projected error is: "<< proj_err<<std::endl;
+				if(proj_err > 2.5)
+				//if(density < 3.0)
 					path_pt.intensity = 1;
 				else
 					path_pt.intensity = 0;
+
 				confidence_path_pcl.points.push_back(path_pt);
 			}
 
 		}
 				
-	//plane parameters
-		float a = 0.0;
-		float b = 0.0;
-		float c = -1.0;
-		float d = 0.0;
-		fit_plane(a, b, d, cropped_pcl);
-		std::cout<<" the plane parameters are: "<< a << ", "<< b << ", "<< c<< ", "<< d<< std::endl;
-		// checking the distance of the camera origing to the fitted plane
-		float e = sqrt(a*a + b*b + c*c);
-		float f = fabs(d)/e; // since the origin has (0,0,0)=> ax+by+z+d is equal to d
-		//http://www.nabla.hr/CG-LinesPlanesIn3DA3.htm
-		// angular position of the fitted plane compared to the x axis of camera
-		float alpha = acos(fabs(a/e));
-		// angular position of the fitted plane compared to the y axis of camera		
-		float beta = acos(fabs(b/e));
-		std::cout<<" distance from origin is: " << f<< std::endl;
-		std::cout<<" rotation angle around X is: " << alpha<<" rotation angle around Y is: " << beta<< std::endl;
+	
 		std::cout<<" end of one round"<<std::endl;
 
 		pcl::PointCloud<pcl::PointXYZI> pclplane;
@@ -168,7 +193,7 @@ int main(int argc, char **argv){
 		std_msgs::Header header;
 		header.stamp = ros::Time::now();
 		header.seq = seq++;
-		header.frame_id = std::string( "/camera_color_optical_frame" );
+		header.frame_id = std::string( "/camera_depth_optical_frame" );
 		
 		pclplane.header = pcl_conversions::toPCL( header );
 		pub_pcl.publish( pclplane );
