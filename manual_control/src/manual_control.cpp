@@ -21,6 +21,7 @@
 #include<std_msgs/Bool.h>
 #include<tf/transform_listener.h>
 #include<iiwa_msgs/TimeToDestination.h>
+#include<iiwa_msgs/JointPosition.h>
 
 #include <kdl/chainfksolver.hpp>
 #include <kdl/chainiksolver.hpp>
@@ -37,7 +38,7 @@ double needle_length = 0.0;
 //Frame KDL::Frame::DH_Craig1989 (double a, double alpha, double d, double theta)
 KDL::Chain LWR(){
 
-  double tool_length = 0.504;
+  double tool_length = 0.506;
   double total_tool_length = tool_length + needle_length + 0.12597;//0.12597 m from joint to flange 
 
   KDL::Chain chain;
@@ -135,8 +136,21 @@ void eval_points(trajectory_msgs::JointTrajectoryPoint & _point, KDL::JntArray &
 	}	
 }
 
+// a quick code for checking the smoothness of commands
+void convert_to_fast(iiwa_msgs::JointPosition & _fast_cmd, trajectory_msgs::JointTrajectoryPoint & _point){
+	_fast_cmd.position.a1 = _point.positions[0];
+	_fast_cmd.position.a2 = _point.positions[1];
+	_fast_cmd.position.a3 = _point.positions[2];
+	_fast_cmd.position.a4 = _point.positions[3];
+	_fast_cmd.position.a5 = _point.positions[4];
+	_fast_cmd.position.a6 = _point.positions[5];
+	_fast_cmd.position.a7 = _point.positions[6];
+}
+
 // autonomous control command variable
-trajectory_msgs::JointTrajectory auto_cmd;
+//trajectory_msgs::JointTrajectory auto_cmd;
+//new command 
+iiwa_msgs::JointPosition auto_cmd;
 
 
 // current and previous centering forces for the haptic device
@@ -156,7 +170,8 @@ std_msgs::Bool test_start;
 bool autonomous_mode = false; // manual is 1 and 0 is auto
 
 //read the autonomous control command
-void get_auto(const trajectory_msgs::JointTrajectory & _data){
+//void get_auto(const trajectory_msgs::JointTrajectory & _data){
+void get_auto(const iiwa_msgs::JointPosition & _data){
 	auto_cmd = _data;
 }
 
@@ -238,7 +253,7 @@ int sgn(double v) {
 }
 
 double dead_zone(double _val){
-	double d = 0.005; //deadzone value of 1cm
+	double d = 0.0075; //deadzone value of 1cm
 	if (fabs(_val) <= d){
 		return 0.0;
 	}else{
@@ -247,11 +262,11 @@ double dead_zone(double _val){
 	
 }
 void convert_commands(geometry_msgs::Twist & _cmd){
-	double c_gain = 0.5;
+	double c_gain = 0.175;
 	// xc = xh, yc = -zh, zc = -yh
 	_cmd.linear.x = dead_zone(phantom_pos.pose.position.x)*c_gain;
-	_cmd.linear.y = -dead_zone(phantom_pos.pose.position.z)*c_gain;
-	_cmd.linear.z = dead_zone(phantom_pos.pose.position.y)*c_gain;
+	_cmd.linear.y = -dead_zone(phantom_pos.pose.position.z)*c_gain*1.3;
+	_cmd.linear.z = dead_zone(phantom_pos.pose.position.y)*c_gain*2;
 }
 
 
@@ -286,9 +301,13 @@ int main(int argc, char * argv[]){
 	ros::Publisher force_pub =nh_.advertise<omni_msgs::OmniFeedback>("/phantom/force_feedback",1);
         
         // defining the puilsher that accepts joint position commands and applies them to the simulator or real robot
-	std::string command_topic = "iiwa/PositionJointInterface_trajectory_controller/command";
+	//std::string command_topic = "iiwa/PositionJointInterface_trajectory_controller/command";
+	std::string command_topic = "/iiwa/command/JointPosition";
 
-	ros::Publisher cmd_pub = nh_.advertise<trajectory_msgs::JointTrajectory>(command_topic,1);
+	//ros::Publisher cmd_pub = nh_.advertise<trajectory_msgs::JointTrajectory>(command_topic,1);
+
+	ros::Publisher cmd_pub = nh_.advertise<iiwa_msgs::JointPosition>(command_topic,1);
+
 
 	ros::Publisher control_mode_pub = nh_.advertise<std_msgs::UInt8>("iiwa/control_mode",1);
 
@@ -314,6 +333,7 @@ int main(int argc, char * argv[]){
 
         trajectory_msgs::JointTrajectory joint_cmd;
 	trajectory_msgs::JointTrajectoryPoint pt;
+	iiwa_msgs::JointPosition fast_joint_cmd;
 
 	initialize_points(pt,nj,0.0);
 	// define the joint names, e.g. iiwa_joint_1 up to iiwa_joint_7
@@ -412,13 +432,15 @@ int main(int argc, char * argv[]){
                                 eval_points(pt, jointpositions_new, nj);
                                 pt.time_from_start = ros::Duration(dt);
                                 joint_cmd.points[0] = pt;
+				convert_to_fast(fast_joint_cmd, pt);
+			
 
 				if (reset_auto.data){
 					reset_auto_pub.publish(reset_auto);
 					reset_auto.data = false;
 				}else if (autonomous_mode){
 					float rem_time;
-					if(client.call(config)){
+					/*if(client.call(config)){
 						rem_time = config.response.remaining_time;
 						if(rem_time < 0.0){
 							reset_auto.data = true;
@@ -430,14 +452,18 @@ int main(int argc, char * argv[]){
 					}else{
 						std::cout << "could not call the service"<<std::endl;
 					}
-					joint_cmd = auto_cmd;                                
+					*/
+					//joint_cmd = auto_cmd;
+					fast_joint_cmd.position = auto_cmd.position;                                
         	                }
-				joint_cmd.header.stamp = ros::Time::now();
-                                cmd_pub.publish(joint_cmd);
-
-				dbg.linear.x = tmp.linear.x;
-				dbg.linear.y = tmp.linear.y; 
-				dbg.linear.z = tmp.linear.z;
+				//joint_cmd.header.stamp = ros::Time::now();
+                                //cmd_pub.publish(joint_cmd);
+				fast_joint_cmd.header.stamp = ros::Time::now();
+				cmd_pub.publish(fast_joint_cmd);
+				
+				//dbg.linear.x = tmp.linear.x;
+				//dbg.linear.y = tmp.linear.y; 
+				//dbg.linear.z = tmp.linear.z;
 				dbg_pub.publish(dbg);
 				
 			}

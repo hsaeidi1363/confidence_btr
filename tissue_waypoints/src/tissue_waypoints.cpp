@@ -65,6 +65,7 @@
 #include <limits>
 #include <algorithm>
 #include <std_msgs/Float32.h>
+#include<std_msgs/Bool.h>
 #include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/features/normal_3d.h>
 #include <pcl/surface/gp3.h>
@@ -74,6 +75,14 @@
 typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
 
 PointCloud pointcloud_in;
+PointCloud prev_pointcloud_in;
+
+
+bool freeze_path = false;
+
+void get_freeze(const std_msgs::Bool & _data){
+	freeze_path = _data.data;	
+}
 
 /** @brief callback is a callback function that subscribes the point cloud data
  * and uses tf to transform to world coordinate
@@ -82,9 +91,16 @@ PointCloud pointcloud_in;
  */
 void callback(const sensor_msgs::PointCloud2Ptr& cloud) {
 
-  pcl::fromROSMsg(*cloud, pointcloud_in);  // copy sensor_msg::Pointcloud message into pcl::PointCloud
-
+  if(!freeze_path){
+	  pcl::fromROSMsg(*cloud, pointcloud_in);  // copy sensor_msg::Pointcloud message into pcl::PointCloud
+	  prev_pointcloud_in = pointcloud_in;
+   }else{
+	 pointcloud_in  = prev_pointcloud_in;
+   }
 }
+
+
+
 /** @brief get_joints is a callback function that subscribe the joint position data
  * and set it into joints vector
  *  @param[in] data sensor_msgs::JointState that contains joint position
@@ -406,8 +422,10 @@ int main(int argc, char **argv) {
 
   // ros::Publisher pub_pcl = nh.advertise<PointCloud>("test", 10);
   ros::Subscriber sub_pcl = n.subscribe("/d415/filtered_points", 1, &callback);
+  ros::Subscriber freeze_path_sub = n.subscribe("/freeze_path",1,&get_freeze);	
   dbg_pub = n.advertise<pcl::PointCloud<pcl::PointXYZ>>("/d415/passthrough",1);
   ros::ServiceServer service = n.advertiseService("FindTrajectory", &find);
+
 
   ros::Rate loop_rate(10);
 

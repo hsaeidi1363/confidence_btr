@@ -31,6 +31,7 @@ void get_polygon(const geometry_msgs::Polygon & _data){
 
 pcl::PointCloud<pcl::PointXYZI> marker_cog_pcl;
 pcl::PointCloud<pcl::PointXYZI> cropped_pcl;
+pcl::PointCloud<pcl::PointXYZI> prev_cropped_pcl;
 
 void get_pcl(const sensor_msgs::PointCloud2Ptr& cloud){
 	pcl::fromROSMsg(*cloud, marker_cog_pcl);

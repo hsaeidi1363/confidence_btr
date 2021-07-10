@@ -6,7 +6,7 @@
 #include<sensor_msgs/PointCloud2.h>
 #include<pcl_ros/transforms.h>
 #include<pcl_conversions/pcl_conversions.h>
-
+#include<std_msgs/Float32.h>
 
 using namespace std;
 
@@ -35,19 +35,29 @@ void get_polygon(const geometry_msgs::Polygon & _data){
 	ROS_INFO("got a new reading from 3D polygons ");
 }
 
+
+float confidence_threshold = 8.4241;
+void get_threshold(const std_msgs::Float32 & _data){
+	confidence_threshold = _data.data;	
+	std::cout <<"------------------------------- " << std::endl;
+	std::cout << "Threshold changed to " << confidence_threshold << std::endl;
+	std::cout <<"------------------------------- " << std::endl;
+}
+
 float calc_projected_err(float roll_, float pitch_, float dist_, float density_){
-	float w1 = 0.25;//weight for roll
-	float w2 = 0.25;//weight for pitch
-	float w3 = 0.5;//weight for dist
+	float w0 = 1.0;//0.65; //for overall normalization based on observed errors	
+	float w1 = 1.0;//0.25;//weight for roll
+	float w2 = 1.0;//0.25;//weight for pitch
+	float w3 = 1.0;//0.5;//weight for dist
 	float w4 = 1.0;//weight for density
 
 	float e1 = 0.000065*roll_*roll_ + 0.0046*roll_ + 1.2134;
 	float e2 = 0.0001564*pitch_*pitch_ - 0.00016*pitch_ + 1.1737;
-	float e3 = 0.0761*dist_*100 - 1.3919;//converted to cm first
+	float e3 = 0.0761*(dist_*100-11) - 1.3919;//converted to cm first
 	float e4 =  10.5458*exp(-0.8991*density_);
 
 	std::cout<<" e1: "<< e1 <<" e2: "<< e2 <<" e3: "<< e3 <<" e4: "<< e4 <<std::endl; 
-	return w1*e1+w2*e2+w3*e3+w4*e4;
+	return w0*(w1*e1+w2*e2+w3*e3+w4*e4);
 }
 
 
@@ -60,6 +70,7 @@ int main(int argc, char **argv){
   ros::Subscriber cropped_pcl_sub = nh_.subscribe("/d415/passthrough", 1, get_cropped_pcl);
   ros::Subscriber path_sub = nh_.subscribe("/filtered_tissue_traj",1,get_path);
   ros::Subscriber polygon_sub = nh_.subscribe("/nir_overlay_intel/polygon3D_cog",1, get_polygon);
+  ros::Subscriber switch_threshold_sub = nh_.subscribe("/confidence_threshold",1, get_threshold);
 
   ros::Publisher pub_pcl= nh_.advertise<sensor_msgs::PointCloud2>( "/planefit_dbg", 10 );
   ros::Publisher pub_path_confidence= nh_.advertise<sensor_msgs::PointCloud2>( "/path_confidence", 10 );
@@ -173,7 +184,7 @@ int main(int argc, char **argv){
 				path_pt.z = path_pcl.points[start_pt].z;
 				float proj_err = calc_projected_err(roll, pitch, mid_dist, density);
 				std::cout<<"projected error is: "<< proj_err<<std::endl;
-				if(proj_err > 2.5)
+				if(proj_err > confidence_threshold)
 				//if(density < 3.0)
 					path_pt.intensity = 1;
 				else

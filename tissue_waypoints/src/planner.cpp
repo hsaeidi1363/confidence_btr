@@ -16,6 +16,7 @@ using namespace std;
 
 trajectory_msgs::JointTrajectory plan;
 pcl::PointCloud<pcl::PointXYZI> dbg_cloud;
+pcl::PointCloud<pcl::PointXYZI> gui_cloud;
 
 
 pcl::PointCloud<pcl::PointXYZ> traj_cloud;
@@ -48,11 +49,20 @@ float calc_dist(trajectory_msgs::JointTrajectoryPoint & _pt, geometry_msgs::Twis
 int main(int argc, char **argv){
   ros::init(argc, argv, "planner");
   ros::NodeHandle n;
+  ros::NodeHandle home("~");
+  float x_offset = 0.0;
+  float y_offset = 0.0;
+  float z_offset = 0.0;
+  home.getParam("x_offset", x_offset);	
+  home.getParam("y_offset", y_offset);	
+  home.getParam("z_offset", z_offset);	
+
 
   ros::Subscriber waypoint_sub = n.subscribe("filtered_tissue_traj",1,&get_traj);
   ros::Subscriber robot_pos_sub = n.subscribe("robot/worldpos", 1, &get_rob_pos);
   ros::Publisher plan_pub =  n.advertise<trajectory_msgs::JointTrajectory>("/plan",1);
   ros::Publisher dbg_traj_pub = n.advertise<pcl::PointCloud<pcl::PointXYZI> > ("plancloud",1);
+  ros::Publisher gui_traj_pub = n.advertise<pcl::PointCloud<pcl::PointXYZI> > ("/user_gui",1);
   tf::TransformListener listener;
      
 	
@@ -85,9 +95,9 @@ int main(int argc, char **argv){
 			  pose_in_world = cam_in_rob(tf::Vector3(ctr->x, ctr->y, ctr->z)); 
 			  trajectory_msgs::JointTrajectoryPoint plan_pt; 
 		 
-			  plan_pt.positions.push_back(pose_in_world.x()- 0.0005); 
-			  plan_pt.positions.push_back(pose_in_world.y()- 0.002); 
-			  plan_pt.positions.push_back(pose_in_world.z()+ 0.005); 
+			  plan_pt.positions.push_back(pose_in_world.x()+ x_offset); 
+			  plan_pt.positions.push_back(pose_in_world.y()+ y_offset); 
+			  plan_pt.positions.push_back(pose_in_world.z()+ z_offset); 
 
 			  plan_pt.positions.push_back(rob_pos.angular.x);
 			  plan_pt.positions.push_back(rob_pos.angular.y);
@@ -114,6 +124,7 @@ int main(int argc, char **argv){
 			if (dist > 0.015 || dist < 0.002){
 				plan.points.clear();
 				dbg_cloud.points.clear();
+				gui_cloud.points.clear();
 				ROS_INFO("cleared the old sorted plan and the length is now %d",(int) plan.points.size());
 				for (int i = 0; i < 2; i++){
 				  int ind = (i + min_ind) % waypoints_len;
@@ -127,12 +138,21 @@ int main(int argc, char **argv){
 			  	  tmp.z = pose_in_cam.z();
 				  tmp.intensity = 1;
 				  dbg_cloud.points.push_back(tmp);
+				  //corrected view of points on tissue surface for the points
+				  pose_in_cam = inv_transform(tf::Vector3(unsorted_plan.points[ind].positions[0]-x_offset, unsorted_plan.points[ind].positions[1]-y_offset, unsorted_plan.points[ind].positions[2]-z_offset)); 
+				  tmp.x = pose_in_cam.x();
+				  tmp.y = pose_in_cam.y();
+			  	  tmp.z = pose_in_cam.z();
+				  gui_cloud.points.push_back(tmp);
+
 				}
 				std_msgs::Header header;
 				header.stamp = ros::Time::now();
 				header.frame_id = std::string("camera_depth_optical_frame");
 				dbg_cloud.header = pcl_conversions::toPCL(header);
 				dbg_traj_pub.publish(dbg_cloud);
+				gui_cloud.header = pcl_conversions::toPCL(header);
+				gui_traj_pub.publish(gui_cloud);
 				plan_pub.publish(plan);
 			}
 	      }     
