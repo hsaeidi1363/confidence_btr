@@ -162,7 +162,7 @@ int main(int argc, char * argv[]){
 	home.getParam("show_markers", show_markers);
 
 
-        int loop_freq = 10;
+        int loop_freq = 25;
 	ros::Rate loop_rate(loop_freq);
 
 	// subscribe to the rectified rgb input (needs the calibration file read in the launch file for the camera)
@@ -227,7 +227,7 @@ int main(int argc, char * argv[]){
 			if (show_markers){
 				circle(img, Point(stduv[i].x, stduv[i].y), 2, Scalar(0,0,255), 2, LINE_AA);
 				int thickness = 1;
-				int lineType = LINE_AA;
+				int lineType = LINE_8;
 				Point start;
 				start.x = stduv[i].x;
 				start.y = stduv[i].y;
@@ -280,22 +280,24 @@ int main(int argc, char * argv[]){
 		  arrow_start.x = 150;
 		  arrow_start.y = 220;
 		  int arrow_len = 100;
-		  if(fabs(teleop_cmd.linear.x) > 0.0){
-			arrow_end.x = arrow_start.x + sgn(teleop_cmd.linear.x)*arrow_len;
-			arrow_end.y = arrow_start.y;
-			arrowedLine(img_crop, arrow_start, arrow_end, Scalar(255, 0, 0), 2, LINE_AA);
-		  }
- 		  if(fabs(teleop_cmd.linear.y) > 0.0){
-			arrow_end.x = arrow_start.x;
-			arrow_end.y = arrow_start.y + sgn(teleop_cmd.linear.y)*arrow_len ;
-			arrowedLine(img_crop, arrow_start, arrow_end, Scalar(0, 255, 0), 2, LINE_AA);
-		  }
- 		  if(fabs(teleop_cmd.linear.z) > 0.0){
-			arrow_end.x = arrow_start.x + sgn(teleop_cmd.linear.z)*arrow_len*0.707;
-			arrow_end.y = arrow_start.y - sgn(teleop_cmd.linear.z)*arrow_len*0.707 ;
-			arrowedLine(img_crop, arrow_start, arrow_end, Scalar(0, 0, 255), 2, LINE_AA);
-		  }
+		  if(!tele_op_mode){
+			  if(fabs(teleop_cmd.linear.x) > 0.0){
+				arrow_end.x = arrow_start.x + sgn(teleop_cmd.linear.x)*arrow_len;
+				arrow_end.y = arrow_start.y;
+				arrowedLine(img_crop, arrow_start, arrow_end, Scalar(255, 0, 0), 2, LINE_AA);
+			  }
+			  if(fabs(teleop_cmd.linear.y) > 0.0){
+				arrow_end.x = arrow_start.x;
+				arrow_end.y = arrow_start.y + sgn(teleop_cmd.linear.y)*arrow_len ;
+				arrowedLine(img_crop, arrow_start, arrow_end, Scalar(0, 255, 0), 2, LINE_AA);
+			  }
+			  if(fabs(teleop_cmd.linear.z) > 0.0){
+				arrow_end.x = arrow_start.x + sgn(teleop_cmd.linear.z)*arrow_len*0.707;
+				arrow_end.y = arrow_start.y - sgn(teleop_cmd.linear.z)*arrow_len*0.707 ;
+				arrowedLine(img_crop, arrow_start, arrow_end, Scalar(0, 0, 255), 2, LINE_AA);
+			  }
 
+		 }
 		  cv_ptr->image = img_crop;
 		
         	  overlay_pub.publish(cv_ptr->toImageMsg());
